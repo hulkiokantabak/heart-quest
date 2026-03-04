@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Quest - A Dating Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: #ec407a;
+            margin: 10px 0;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            font-style: italic;
+        }
+
+        .sticky-bar {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sticky-bar-item {
+            font-size: 0.85em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .input-group {
+            margin: 15px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+
+        .trait-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .trait-btn {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+
+        .trait-btn.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .character-card {
+            border: 3px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+            position: relative;
+        }
+
+        .character-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .character-card.selected {
+            border-color: #ec407a;
+            background: #fce4ec;
+        }
+
+        .character-card.custom {
+            border: 3px dashed #667eea;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+
+        .char-emoji {
+            font-size: 2.5em;
+            margin: 8px 0;
+        }
+
+        .char-name {
+            font-weight: 600;
+            font-size: 1em;
+            margin: 6px 0;
+        }
+
+        .char-desc {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .char-stats {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.7em;
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .bio-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .bio-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .location-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .location-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .location-card:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .location-card.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .time-btn {
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85em;
+        }
+
+        .time-btn.selected {
+            background: #764ba2;
+            color: white;
+            border-color: #764ba2;
+        }
+
+        .actions-grid {
+            display: grid;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .action-btn {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover {
+            background: #f5f7ff;
+            border-color: #667eea;
+        }
+
+        .action-btn.risk-low {
+            border-left: 4px solid #10b981;
+        }
+
+        .action-btn.risk-medium {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .action-btn.risk-high {
+            border-left: 4px solid #ef4444;
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .custom-action {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .custom-action input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .response-box {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: fadeIn 0.5s;
+        }
+
+        .player-action {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .char-response {
+            background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+            color: white;
+        }
+
+        .relationship-stage {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 12px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: 600;
+            color: #78350f;
+            font-size: 1.1em;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-primary {
+            padding: 14px 32px;
+            font-size: 1.1em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            padding: 12px 24px;
+            font-size: 1em;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f7ff;
+        }
+
+        .scene-desc {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-style: italic;
+            color: #78350f;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+        }
+
+        .stat-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .achievement {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 6px 0;
+            font-size: 0.85em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .leaderboard {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #e5e7eb;
+            color: #666;
+            font-size: 0.85em;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .about-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            animation: fadeIn 0.3s;
+        }
+
+        .about-content {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+        }
+
+        .about-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .about-content .version {
+            color: #999;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .about-content .creator {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin: 15px 0;
+        }
+
+        .about-content .copyright {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 25px;
+        }
+
+        .about-content .description {
+            color: #555;
+            line-height: 1.6;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 10px;
+        }
+
+        .about-content .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 10px;
+        }
+
+        .about-content .stat-item {
+            text-align: center;
+        }
+
+        .about-content .stat-number {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .about-content .stat-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .about-content .tech-note {
+            color: #888;
+            font-size: 0.85em;
+            margin: 15px 0;
+            font-style: italic;
+        }
+
+        .about-content .ai-credit {
+            color: #999;
+            font-size: 0.8em;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 { font-size: 2em; }
+            .character-grid { grid-template-columns: repeat(2, 1fr); }
+            .sticky-bar { font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="font-size: 3em; animation: pulse 2s infinite;">💕</div>
+            <h1>Heart Quest</h1>
+            <p class="subtitle">A Dating Game</p>
+        </div>
+        <div id="app"></div>
+    </div>
+
+    <script>
+        const app = document.getElementById('app');
+        
+        const characters = [
+            {
+                name: 'Marcus', emoji: '💪', gender: 'male',
+                personality: 'Athletic and competitive, lives for the gym',
+                preferences: { locations: ['gym', 'park', 'beach'], times: ['morning', 'afternoon'], 
+                             attracted_to: ['female', 'male', 'nonbinary'], age: ['young', 'mid'] },
+                interests: ['sports', 'fitness'],
+                speech: { 
+                    great: ["Awesome! That's what I'm talking about!", "Hell yeah, now we're vibing!"], 
+                    good: ["Nice move!", "I can work with that."], 
+                    poor: ["Eh, not really my thing.", "Kinda awkward, not gonna lie."], 
+                    bad: ["Nah, that ain't it.", "Yeah... no. Just no."] 
+                }
+            },
+            {
+                name: 'David', emoji: '📚', gender: 'male',
+                personality: 'Intellectual introvert, deep thinker',
+                preferences: { locations: ['library', 'cafe', 'bookstore', 'museum'], times: ['afternoon', 'evening', 'night'],
+                             attracted_to: ['female', 'nonbinary'], age: ['mid', 'mature'] },
+                interests: ['books', 'arts'],
+                speech: { 
+                    great: ["How utterly fascinating...", "Now this is intellectually stimulating."], 
+                    good: ["I find that rather interesting.", "A thoughtful approach."], 
+                    poor: ["I'm not entirely convinced.", "That's... simplistic."], 
+                    bad: ["That's rather pedestrian.", "I expected better, frankly."] 
+                }
+            },
+            {
+                name: 'Jake', emoji: '🎨', gender: 'male',
+                personality: 'Creative artist, sensitive soul',
+                preferences: { locations: ['cafe', 'park', 'museum', 'beach'], times: ['noon', 'afternoon', 'evening'],
+                             attracted_to: ['female', 'male', 'nonbinary'], age: ['young', 'mid'] },
+                interests: ['arts', 'music'],
+                speech: { 
+                    great: ["That speaks to my soul...", "You get it. You really get it."], 
+                    good: ["I can feel that energy.", "There's something here."], 
+                    poor: ["Feels a bit... superficial?", "Not quite resonating."], 
+                    bad: ["That's just... wrong.", "Please, just stop."] 
+                }
+            },
+            {
+                name: 'Carlos', emoji: '🍳', gender: 'male',
+                personality: 'Passionate chef, loves food and culture',
+                preferences: { locations: ['cafe', 'bar', 'beach', 'park'], times: ['noon', 'afternoon', 'evening'],
+                             attracted_to: ['female', 'male', 'nonbinary'], age: ['young', 'mid', 'mature'] },
+                interests: ['food', 'travel'],
+                speech: { 
+                    great: ["¡Perfecto! You have excellent taste!", "Now this is someone who appreciates life!"], 
+                    good: ["Not bad, not bad at all.", "I like your style."], 
+                    poor: ["Hmm, a bit bland for my taste.", "Missing some spice."], 
+                    bad: ["Ay, no no no. This won't work.", "Absolutely not my flavor."] 
+                }
+            },
+            {
+                name: 'Emma', emoji: '✨', gender: 'female',
+                personality: 'Adventurous spirit, free-spirited',
+                preferences: { locations: ['beach', 'park', 'club', 'cafe'], times: ['afternoon', 'evening', 'night'],
+                             attracted_to: ['male', 'female', 'nonbinary'], age: ['young', 'mid'] },
+                interests: ['adventure', 'travel'],
+                speech: { 
+                    great: ["OMG yes! This is exactly my vibe!", "You're my kind of spontaneous!"], 
+                    good: ["I like where this is going!", "Fun energy!"], 
+                    poor: ["That's... kind of boring?", "Yikes, awkward."], 
+                    bad: ["Ew, no thanks.", "Are you serious right now?"] 
+                }
+            },
+            {
+                name: 'Sophie', emoji: '🌸', gender: 'female',
+                personality: 'Sweet and caring, values kindness',
+                preferences: { locations: ['cafe', 'park', 'library', 'bookstore'], times: ['morning', 'noon', 'afternoon'],
+                             attracted_to: ['male', 'female'], age: ['young', 'mid', 'mature'] },
+                interests: ['books', 'nature'],
+                speech: { 
+                    great: ["Oh my goodness, that's so sweet!", "You're making me blush!"], 
+                    good: ["That's really nice!", "I appreciate that."], 
+                    poor: ["Oh... um, okay.", "That's a bit much."], 
+                    bad: ["Please don't.", "I'm uncomfortable now."] 
+                }
+            },
+            {
+                name: 'Rachel', emoji: '💼', gender: 'female',
+                personality: 'Ambitious professional, driven and focused',
+                preferences: { locations: ['cafe', 'work', 'bar', 'museum'], times: ['morning', 'evening', 'night'],
+                             attracted_to: ['male', 'nonbinary'], age: ['mid', 'mature'] },
+                interests: ['career', 'business'],
+                speech: { 
+                    great: ["Impressive. I respect that.", "Now you're speaking my language."], 
+                    good: ["Solid approach.", "I can work with this."], 
+                    poor: ["That's inefficient.", "Not quite there."], 
+                    bad: ["Waste of time.", "Next."] 
+                }
+            },
+            {
+                name: 'Priya', emoji: '🧘‍♀️', gender: 'female',
+                personality: 'Yoga instructor, mindful and balanced',
+                preferences: { locations: ['park', 'beach', 'cafe', 'gym'], times: ['morning', 'noon', 'afternoon'],
+                             attracted_to: ['male', 'female', 'nonbinary'], age: ['young', 'mid', 'mature'] },
+                interests: ['wellness', 'nature'],
+                speech: { 
+                    great: ["That's beautiful energy!", "We're totally aligned!"], 
+                    good: ["I feel good vibes from you.", "Peaceful approach."], 
+                    poor: ["That disturbs my chakras.", "Not quite centered."], 
+                    bad: ["Very negative energy.", "I need to protect my peace."] 
+                }
+            },
+            {
+                name: 'Alex', emoji: '🌈', gender: 'nonbinary',
+                personality: 'Creative activist, passionate about equality',
+                preferences: { locations: ['cafe', 'park', 'club', 'museum'], times: ['afternoon', 'evening', 'night'],
+                             attracted_to: ['male', 'female', 'nonbinary'], age: ['young', 'mid'] },
+                interests: ['activism', 'arts'],
+                speech: { 
+                    great: ["Yes! That's so authentic!", "You're speaking my truth!"], 
+                    good: ["I vibe with that.", "Respectable."], 
+                    poor: ["That feels performative.", "Hmm, questionable."], 
+                    bad: ["That's problematic.", "Absolutely not."] 
+                }
+            },
+            {
+                name: 'Jordan', emoji: '🎵', gender: 'nonbinary',
+                personality: 'Musician, lives for creative expression',
+                preferences: { locations: ['club', 'cafe', 'bar', 'park'], times: ['evening', 'night', 'past midnight'],
+                             attracted_to: ['male', 'female', 'nonbinary'], age: ['young', 'mid'] },
+                interests: ['music', 'arts'],
+                speech: { 
+                    great: ["That's pure poetry!", "Our frequencies are aligned!"], 
+                    good: ["I dig that rhythm.", "Nice harmony there."], 
+                    poor: ["That's off-key.", "Dissonance."], 
+                    bad: ["Please, make it stop.", "You're tone-deaf."] 
+                }
+            },
+            {
+                name: 'Riley', emoji: '🧘', gender: 'nonbinary',
+                personality: 'Mindful and zen, seeks inner peace',
+                preferences: { locations: ['park', 'beach', 'library', 'cafe'], times: ['morning', 'noon', 'evening'],
+                             attracted_to: ['male', 'female', 'nonbinary'], age: ['mid', 'mature'] },
+                interests: ['wellness', 'nature'],
+                speech: { 
+                    great: ["That resonates deeply with me.", "Our energies align perfectly."], 
+                    good: ["I sense good intentions.", "Peaceful approach."], 
+                    poor: ["That disturbs my balance.", "Heavy energy."], 
+                    bad: ["Toxic vibes.", "I need to protect my peace."] 
+                }
+            },
+            {
+                name: 'Sam', emoji: '🎮', gender: 'nonbinary',
+                personality: 'Gamer and tech enthusiast, playful',
+                preferences: { locations: ['cafe', 'club', 'work', 'bar'], times: ['afternoon', 'evening', 'night', 'past midnight'],
+                             attracted_to: ['male', 'female', 'nonbinary'], age: ['young', 'mid'] },
+                interests: ['tech', 'gaming'],
+                speech: { 
+                    great: ["Achievement unlocked! You're awesome!", "Critical hit on my heart!"], 
+                    good: ["Nice combo move!", "You're leveling up."], 
+                    poor: ["Lag detected...", "That's a bug."], 
+                    bad: ["Game over, friend.", "You've been disconnected."] 
+                }
+            }
+        ];
+
+        const locations = {
+            gym: { name: 'Gym', emoji: '💪', atmosphere: 'The smell of sweat and determination fills the air. Weights clank rhythmically.' },
+            cafe: { name: 'Cafe', emoji: '☕', atmosphere: 'Cozy warmth, coffee aroma, soft indie music playing. Perfect for connection.' },
+            bar: { name: 'Bar', emoji: '🍺', atmosphere: 'Dim lights, chatter and laughter mix with clinking glasses.' },
+            library: { name: 'Library', emoji: '📚', atmosphere: 'Hushed whispers, rustling pages, the scent of old books and knowledge.' },
+            park: { name: 'Park', emoji: '🌳', atmosphere: 'Fresh air, birds chirping, sunlight filtering through trees.' },
+            work: { name: 'Work', emoji: '💼', atmosphere: 'Fluorescent lights, keyboard clicks, professional tension in the air.' },
+            club: { name: 'Club', emoji: '💃', atmosphere: 'Pulsing beats, flashing lights, bodies moving to the rhythm.' },
+            museum: { name: 'Museum', emoji: '🎨', atmosphere: 'Quiet reverence, artistic masterpieces, cultured ambiance.' },
+            bookstore: { name: 'Bookstore', emoji: '📖', atmosphere: 'Literary haven, new book smell, endless stories waiting.' },
+            beach: { name: 'Beach', emoji: '🏖️', atmosphere: 'Waves crashing, sand between toes, salty breeze, golden sunshine.' }
+        };
+
+        const actions = {
+            gym: [
+                { text: '💪 Spot them on weights', base: 12, risk: 'low' },
+                { text: '💬 Chat by water fountain', base: 8, risk: 'low' },
+                { text: '🤝 Suggest workout together', base: 18, risk: 'medium' },
+                { text: '👍 Compliment their form', base: 10, risk: 'low' },
+                { text: '😬 Offer unsolicited tips', base: -8, risk: 'high' },
+                { text: '🤢 Share your protein shake', base: -5, risk: 'medium' },
+                { text: '👀 Stare from across room', base: -10, risk: 'high' },
+                { text: '😊 Smile and leave', base: 4, risk: 'safe' }
+            ],
+            cafe: [
+                { text: '☕ Offer to buy their coffee', base: 16, risk: 'medium' },
+                { text: '📖 Comment on their book', base: 12, risk: 'low' },
+                { text: '🪑 Ask to share table', base: 14, risk: 'medium' },
+                { text: '😄 Make coffee joke', base: 6, risk: 'low' },
+                { text: '🙄 Bad coffee pun', base: -6, risk: 'high' },
+                { text: '📱 Complain about wifi', base: -8, risk: 'high' },
+                { text: '🤐 Hover awkwardly', base: -4, risk: 'medium' },
+                { text: '👋 Wave and sit separately', base: 3, risk: 'safe' }
+            ],
+            bar: [
+                { text: '🍺 Buy them a drink', base: 18, risk: 'medium' },
+                { text: '🎵 Talk about the music', base: 10, risk: 'low' },
+                { text: '🎯 Challenge to darts/pool', base: 14, risk: 'medium' },
+                { text: '😏 Smooth pickup line', base: 12, risk: 'high' },
+                { text: '🤬 Argue about sports', base: -7, risk: 'high' },
+                { text: '🥂 Toast alone awkwardly', base: -5, risk: 'medium' },
+                { text: '📱 Ignore them, scroll phone', base: -12, risk: 'high' },
+                { text: '😊 Nod and enjoy drink', base: 4, risk: 'safe' }
+            ],
+            library: [
+                { text: '📚 Recommend a book', base: 16, risk: 'medium' },
+                { text: '🤫 Share quiet study spot', base: 12, risk: 'low' },
+                { text: '✍️ Leave note in their book', base: 20, risk: 'high' },
+                { text: '🤓 Discuss literature', base: 14, risk: 'medium' },
+                { text: '📢 Talk too loudly', base: -10, risk: 'high' },
+                { text: '👀 Peek over their shoulder', base: -8, risk: 'high' },
+                { text: '😴 Yawn obviously', base: -4, risk: 'medium' },
+                { text: '📖 Enjoy book silently', base: 5, risk: 'safe' }
+            ],
+            park: [
+                { text: '🐕 Bond over dog/pets', base: 18, risk: 'medium' },
+                { text: '🏃 Jog alongside them', base: 12, risk: 'medium' },
+                { text: '🧺 Suggest picnic together', base: 16, risk: 'medium' },
+                { text: '🌸 Compliment surroundings', base: 8, risk: 'low' },
+                { text: '🚴 Almost hit them biking', base: -10, risk: 'high' },
+                { text: '🦆 Feed ducks awkwardly', base: -3, risk: 'low' },
+                { text: '😑 Complain about weather', base: -6, risk: 'medium' },
+                { text: '😊 Enjoy nature alone', base: 4, risk: 'safe' }
+            ],
+            work: [
+                { text: '☕ Invite to coffee break', base: 14, risk: 'medium' },
+                { text: '💼 Collaborate on project', base: 16, risk: 'medium' },
+                { text: '🍕 Suggest lunch together', base: 18, risk: 'medium' },
+                { text: '👍 Compliment their work', base: 12, risk: 'low' },
+                { text: '🙄 Micromanage them', base: -10, risk: 'high' },
+                { text: '😤 Take credit for idea', base: -15, risk: 'high' },
+                { text: '💤 Slack off obviously', base: -8, risk: 'high' },
+                { text: '😊 Professional nod', base: 5, risk: 'safe' }
+            ],
+            club: [
+                { text: '💃 Ask them to dance', base: 20, risk: 'high' },
+                { text: '🍸 Buy them a cocktail', base: 16, risk: 'medium' },
+                { text: '🎵 Compliment dance moves', base: 12, risk: 'low' },
+                { text: '😎 Dance near them', base: 14, risk: 'medium' },
+                { text: '😵 Dance terribly on purpose', base: -6, risk: 'medium' },
+                { text: '🤮 Spill drink on them', base: -12, risk: 'high' },
+                { text: '😴 Look bored/tired', base: -8, risk: 'high' },
+                { text: '😊 Enjoy the vibe', base: 4, risk: 'safe' }
+            ],
+            museum: [
+                { text: '🎨 Discuss artwork together', base: 18, risk: 'medium' },
+                { text: '📸 Offer to take photo', base: 12, risk: 'low' },
+                { text: '🧐 Share art knowledge', base: 14, risk: 'medium' },
+                { text: '✨ Appreciate in silence', base: 8, risk: 'low' },
+                { text: '🙄 Pretend to know art', base: -8, risk: 'high' },
+                { text: '📢 Talk too loudly', base: -10, risk: 'high' },
+                { text: '😑 Say "my kid could do this"', base: -12, risk: 'high' },
+                { text: '😊 Respectful admiration', base: 5, risk: 'safe' }
+            ],
+            bookstore: [
+                { text: '📚 Recommend favorite book', base: 16, risk: 'medium' },
+                { text: '☕ Suggest coffee after', base: 18, risk: 'medium' },
+                { text: '📖 Discuss genres', base: 12, risk: 'low' },
+                { text: '✍️ Ask about their reading', base: 14, risk: 'medium' },
+                { text: '🙄 Judge their book choice', base: -10, risk: 'high' },
+                { text: '📱 Browse phone instead', base: -8, risk: 'high' },
+                { text: '😴 Say "I don\'t read"', base: -12, risk: 'high' },
+                { text: '😊 Browse peacefully', base: 5, risk: 'safe' }
+            ],
+            beach: [
+                { text: '🏐 Invite to beach volleyball', base: 18, risk: 'medium' },
+                { text: '🌊 Suggest swimming together', base: 16, risk: 'medium' },
+                { text: '🍉 Share snacks/drinks', base: 14, risk: 'low' },
+                { text: '🌅 Watch sunset together', base: 20, risk: 'medium' },
+                { text: '😎 Show off too much', base: -6, risk: 'medium' },
+                { text: '🏖️ Kick sand accidentally', base: -8, risk: 'high' },
+                { text: '😑 Complain about sand', base: -10, risk: 'high' },
+                { text: '😊 Relax peacefully', base: 4, risk: 'safe' }
+            ]
+        };
+
+        const times = ['morning', 'noon', 'afternoon', 'evening', 'night', 'past midnight'];
+
+        let gameState = {
+            screen: 'menu',
+            playerName: '',
+            playerGender: null,
+            playerTraits: { age: null, personality: null, interests: [], style: null },
+            targetChar: null,
+            location: null,
+            timeOfDay: null,
+            encounterNum: 0,
+            maxEncounters: 8,
+            points: 0,
+            requiredPoints: 100,
+            actionHistory: [],
+            achievements: [],
+            streak: 0,
+            lastAction: null,
+            relationshipStage: 'Stranger',
+            customChar: null,
+            showBio: null,
+            showAbout: false
+        };
+
+        let stats = JSON.parse(localStorage.getItem('heartQuestStats') || '{}');
+
+        const VERSION = 'v1.0.0';
+
+        function showAbout() {
+            gameState.showAbout = true;
+            render();
+        }
+
+        function closeAbout() {
+            gameState.showAbout = false;
+            render();
+        }
+
+        function renderFooter() {
+            return `
+                <div class="footer">
+                    Heart Quest ${VERSION} | <a onclick="showAbout()">About</a>
+                </div>
+            `;
+        }
+
+        function getRelationshipStage(points) {
+            if (points >= 100) return '💑 Partner';
+            if (points >= 70) return '💕 Love Interest';
+            if (points >= 40) return '👥 Friend';
+            if (points >= 15) return '🤝 Acquaintance';
+            return '👋 Stranger';
+        }
+
+        function saveProgress() {
+            const char = gameState.targetChar;
+            if (!stats[char]) stats[char] = { wins: 0, losses: 0, bestScore: 0 };
+            
+            if (gameState.points >= gameState.requiredPoints) {
+                stats[char].wins++;
+            } else {
+                stats[char].losses++;
+            }
+            
+            if (gameState.points > stats[char].bestScore) {
+                stats[char].bestScore = gameState.points;
+            }
+            
+            localStorage.setItem('heartQuestStats', JSON.stringify(stats));
+        }
+
+        function random(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function calculatePoints(action, repeated) {
+            let points = action.base;
+            const char = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
+            
+            if (char.preferences.locations.includes(gameState.location)) points += 5;
+            if (char.preferences.times.includes(gameState.timeOfDay)) points += 5;
+            if (gameState.playerTraits.age && char.preferences.age.includes(gameState.playerTraits.age)) points += 8;
+            if (char.preferences.attracted_to.includes(gameState.playerGender)) points += 10;
+            else points -= 5;
+            if (gameState.playerTraits.interests.some(i => char.interests.includes(i))) points += 6;
+            if (gameState.playerTraits.personality === 'outgoing' && ['bar', 'club'].includes(gameState.location)) points += 4;
+            if (gameState.playerTraits.personality === 'reserved' && ['library', 'cafe'].includes(gameState.location)) points += 4;
+            if (gameState.playerTraits.style === 'professional' && gameState.location === 'work') points += 5;
+            if (gameState.playerTraits.style === 'casual' && ['park', 'beach'].includes(gameState.location)) points += 5;
+            if (repeated) points = Math.floor(points * 0.4);
+            if (gameState.streak >= 3) points += 3;
+            
+            return points;
+        }
+
+        function analyzeCustomAction(text) {
+            const lower = text.toLowerCase();
+            const char = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
+            
+            const compliments = ['beautiful', 'gorgeous', 'amazing', 'wonderful', 'stunning', 'incredible'];
+            const help = ['help', 'assist', 'support', 'join', 'together'];
+            const negative = ['stupid', 'ugly', 'boring', 'dumb', 'weird', 'creepy'];
+            const romantic = ['love', 'kiss', 'date', 'marry', 'forever'];
+            
+            if (negative.some(w => lower.includes(w))) {
+                return { points: -10, response: random(char.speech.bad) };
+            }
+            
+            if (romantic.some(w => lower.includes(w))) {
+                const success = Math.random() > 0.5;
+                return success ? 
+                    { points: 20, response: random(char.speech.great) } : 
+                    { points: -8, response: random(char.speech.bad) };
+            }
+            
+            if (compliments.some(w => lower.includes(w))) {
+                return { points: 10, response: random(char.speech.good) };
+            }
+            
+            if (help.some(w => lower.includes(w))) {
+                return { points: 14, response: random(char.speech.good) };
+            }
+            
+            if (lower.includes('yourself') || lower.includes('be yourself')) {
+                return { points: 10, response: random(char.speech.good) };
+            }
+            
+            if (lower.includes(char.name.toLowerCase())) {
+                return { points: 5, response: "You remembered my name! " + random(char.speech.good) };
+            }
+            
+            const randomPoints = Math.floor(Math.random() * 20) - 5;
+            const responseLevel = randomPoints > 10 ? 'great' : randomPoints > 5 ? 'good' : randomPoints > 0 ? 'poor' : 'bad';
+            return { points: randomPoints, response: random(char.speech[responseLevel]) };
+        }
+
+        function getResponse(points, charName) {
+            const char = characters.find(c => c.name === charName) || gameState.customChar;
+            if (points >= 15) return random(char.speech.great);
+            if (points >= 8) return random(char.speech.good);
+            if (points >= 0) return random(char.speech.poor);
+            return random(char.speech.bad);
+        }
+
+        function checkAchievements() {
+            if (gameState.streak >= 5 && !gameState.achievements.find(a => a.id === 'streak5')) {
+                gameState.achievements.push({ id: 'streak5', name: '🔥 On Fire', desc: '5 streak combo!' });
+            }
+            if (gameState.points >= 100 && !gameState.achievements.find(a => a.id === 'century')) {
+                gameState.achievements.push({ id: 'century', name: '💯 Century', desc: 'Reached 100 points!' });
+            }
+        }
+
+        function render() {
+            if (gameState.showAbout) {
+                app.innerHTML = `
+                    <div class="about-modal" onclick="if(event.target === this) closeAbout()">
+                        <div class="about-content">
+                            <div style="font-size: 3em; margin-bottom: 15px;">💕</div>
+                            <h2>Heart Quest</h2>
+                            <div class="version">${VERSION}</div>
+                            
+                            <div class="creator">Created by Hulki Okan Tabak</div>
+                            <div class="copyright">© 2025</div>
+                            
+                            <div class="description">
+                                A romantic adventure where your choices matter. Navigate love through unique characters across diverse locations, building relationships one encounter at a time.
+                            </div>
+                            
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <div class="stat-number">12</div>
+                                    <div class="stat-label">Characters</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">10</div>
+                                    <div class="stat-label">Locations</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">80+</div>
+                                    <div class="stat-label">Actions</div>
+                                </div>
+                            </div>
+                            
+                            <div class="tech-note">Built with vanilla HTML/JavaScript</div>
+                            <div class="ai-credit">Developed with assistance from Claude AI</div>
+                            
+                            <button class="btn-primary" onclick="closeAbout()">Close</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            if (gameState.showBio) {
+                const char = characters.find(c => c.name === gameState.showBio);
+                const charStats = stats[char.name] || { wins: 0, losses: 0, bestScore: 0 };
+                app.innerHTML = `
+                    <div class="bio-modal" onclick="if(event.target === this) { gameState.showBio = null; render(); }">
+                        <div class="bio-content">
+                            <div style="text-align: center;">
+                                <div class="char-emoji">${char.emoji}</div>
+                                <h2 style="color: #667eea;">${char.name}</h2>
+                                <p style="color: #666; margin: 10px 0;">${char.personality}</p>
+                            </div>
+                            
+                            <div class="info-box" style="margin: 20px 0;">
+                                <strong>💼 Interests:</strong> ${char.interests.join(', ')}<br>
+                                <strong>🌈 Attracted to:</strong> ${char.preferences.attracted_to.join(', ')}<br>
+                                <strong>📍 Favorite spots:</strong> ${char.preferences.locations.map(l => locations[l].name).join(', ')}<br>
+                                <strong>⏰ Best times:</strong> ${char.preferences.times.join(', ')}
+                            </div>
+
+                            <div class="leaderboard">
+                                <h3 style="color: #667eea; margin-bottom: 10px;">📊 Your Stats with ${char.name}</h3>
+                                <div class="leaderboard-item">
+                                    <span>Successful dates:</span>
+                                    <strong style="color: #10b981;">${charStats.wins}</strong>
+                                </div>
+                                <div class="leaderboard-item">
+                                    <span>Unsuccessful attempts:</span>
+                                    <strong style="color: #ef4444;">${charStats.losses}</strong>
+                                </div>
+                                <div class="leaderboard-item">
+                                    <span>Best score:</span>
+                                    <strong style="color: #667eea;">${charStats.bestScore}</strong>
+                                </div>
+                            </div>
+
+                            <button class="btn-primary" onclick="gameState.showBio = null; render();">Close</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            if (gameState.screen === 'menu') {
+                app.innerHTML = `
+                    <div style="text-align: center;">
+                        <h2 style="color: #667eea; margin: 20px 0;">Welcome to Heart Quest!</h2>
+                        <p style="color: #666; margin-bottom: 30px;">Find love through meaningful connections</p>
+                        <button class="btn-primary" onclick="gameState.screen = 'name'; render();">🎮 New Game</button>
+                        <button class="btn-secondary" onclick="gameState.screen = 'stats'; render();">📊 View Stats</button>
+                        <button class="btn-secondary" onclick="showAbout()">ℹ️ About</button>
+                    </div>
+                    ${renderFooter()}
+                `;
+            }
+            else if (gameState.screen === 'stats') {
+                const totalGames = Object.values(stats).reduce((sum, s) => sum + s.wins + s.losses, 0);
+                app.innerHTML = `
+                    <div>
+                        <h2 style="color: #667eea; margin: 20px 0;">📊 Your Dating History</h2>
+                        <div class="info-box">
+                            <strong>Total Games Played:</strong> ${totalGames}
+                        </div>
+                        <div class="leaderboard">
+                            ${Object.entries(stats).map(([name, s]) => {
+                                const char = characters.find(c => c.name === name);
+                                const winRate = s.wins + s.losses > 0 ? Math.round((s.wins / (s.wins + s.losses)) * 100) : 0;
+                                return `
+                                    <div class="leaderboard-item">
+                                        <div>
+                                            <strong>${char ? char.emoji : '❓'} ${name}</strong>
+                                            <div style="font-size: 0.8em; color: #666;">Win rate: ${winRate}% | Best: ${s.bestScore}</div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="color: #10b981;">✓ ${s.wins}</div>
+                                            <div style="color: #ef4444;">✗ ${s.losses}</div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('') || '<p style="text-align: center; color: #666; padding: 20px;">No games played yet!</p>'}
+                        </div>
+                        <button class="btn-primary" onclick="gameState.screen = 'menu'; render();">Back to Menu</button>
+                    </div>
+                    ${renderFooter()}
+                `;
+            }
+            else if (gameState.screen === 'name') {
+                app.innerHTML = `
+                    <div style="text-align: center;">
+                        <h2 style="color: #667eea; margin: 20px 0;">Welcome to Heart Quest!</h2>
+                        <div class="input-group">
+                            <label>What's your name?</label>
+                            <input type="text" id="nameInput" placeholder="Enter your name..." autofocus>
+                        </div>
+                        <button class="btn-primary" onclick="submitName()">Continue</button>
+                    </div>
+                `;
+            }
+            else if (gameState.screen === 'gender') {
+                app.innerHTML = `
+                    <div>
+                        <h2 style="color: #667eea; text-align: center; margin: 20px 0;">Hi ${gameState.playerName}! Choose your identity:</h2>
+                        <div class="trait-grid">
+                            <div class="trait-btn ${gameState.playerGender === 'male' ? 'selected' : ''}" onclick="selectGender('male')">👨 Male</div>
+                            <div class="trait-btn ${gameState.playerGender === 'female' ? 'selected' : ''}" onclick="selectGender('female')">👩 Female</div>
+                            <div class="trait-btn ${gameState.playerGender === 'nonbinary' ? 'selected' : ''}" onclick="selectGender('nonbinary')">🌈 Non-binary</div>
+                        </div>
+                        ${gameState.playerGender ? '<button class="btn-primary" onclick="gameState.screen = \'traits\'; render();">Continue</button>' : ''}
+                    </div>
+                `;
+            }
+            else if (gameState.screen === 'traits') {
+                app.innerHTML = `
+                    <div>
+                        <h2 style="color: #667eea; margin: 20px 0;">Build Your Profile</h2>
+                        
+                        <div class="input-group">
+                            <label>Age Group</label>
+                            <div class="trait-grid">
+                                <div class="trait-btn ${gameState.playerTraits.age === 'young' ? 'selected' : ''}" onclick="selectTrait('age', 'young')">18-25 Young</div>
+                                <div class="trait-btn ${gameState.playerTraits.age === 'mid' ? 'selected' : ''}" onclick="selectTrait('age', 'mid')">26-35 Mid</div>
+                                <div class="trait-btn ${gameState.playerTraits.age === 'mature' ? 'selected' : ''}" onclick="selectTrait('age', 'mature')">36+ Mature</div>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Personality</label>
+                            <div class="trait-grid">
+                                <div class="trait-btn ${gameState.playerTraits.personality === 'outgoing' ? 'selected' : ''}" onclick="selectTrait('personality', 'outgoing')">😄 Outgoing</div>
+                                <div class="trait-btn ${gameState.playerTraits.personality === 'balanced' ? 'selected' : ''}" onclick="selectTrait('personality', 'balanced')">😊 Balanced</div>
+                                <div class="trait-btn ${gameState.playerTraits.personality === 'reserved' ? 'selected' : ''}" onclick="selectTrait('personality', 'reserved')">😌 Reserved</div>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Interests (pick 2)</label>
+                            <div class="trait-grid">
+                                <div class="trait-btn ${gameState.playerTraits.interests.includes('sports') ? 'selected' : ''}" onclick="toggleInterest('sports')">⚽ Sports</div>
+                                <div class="trait-btn ${gameState.playerTraits.interests.includes('arts') ? 'selected' : ''}" onclick="toggleInterest('arts')">🎨 Arts</div>
+                                <div class="trait-btn ${gameState.playerTraits.interests.includes('books') ? 'selected' : ''}" onclick="toggleInterest('books')">📚 Books</div>
+                                <div class="trait-btn ${gameState.playerTraits.interests.includes('music') ? 'selected' : ''}" onclick="toggleInterest('music')">🎵 Music</div>
+                                <div class="trait-btn ${gameState.playerTraits.interests.includes('nature') ? 'selected' : ''}" onclick="toggleInterest('nature')">🌿 Nature</div>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Style</label>
+                            <div class="trait-grid">
+                                <div class="trait-btn ${gameState.playerTraits.style === 'casual' ? 'selected' : ''}" onclick="selectTrait('style', 'casual')">👕 Casual</div>
+                                <div class="trait-btn ${gameState.playerTraits.style === 'professional' ? 'selected' : ''}" onclick="selectTrait('style', 'professional')">💼 Professional</div>
+                                <div class="trait-btn ${gameState.playerTraits.style === 'creative' ? 'selected' : ''}" onclick="selectTrait('style', 'creative')">🎨 Creative</div>
+                            </div>
+                        </div>
+
+                        ${gameState.playerTraits.age && gameState.playerTraits.personality && gameState.playerTraits.interests.length === 2 && gameState.playerTraits.style ? 
+                            '<button class="btn-primary" onclick="gameState.screen = \'selectChar\'; render();">Start Quest 💫</button>' : 
+                            '<p style="text-align: center; color: #666; margin-top: 20px;">Complete all sections to continue</p>'}
+                    </div>
+                `;
+            }
+            else if (gameState.screen === 'selectChar') {
+                app.innerHTML = `
+                    <div>
+                        <h2 style="color: #667eea; text-align: center; margin: 20px 0;">Who catches your eye?</h2>
+                        <div class="character-grid">
+                            ${characters.map(char => {
+                                const charStats = stats[char.name] || { wins: 0, losses: 0 };
+                                return `
+                                    <div class="character-card ${gameState.targetChar === char.name ? 'selected' : ''}" onclick="selectChar('${char.name}')">
+                                        ${charStats.wins > 0 ? `<div class="char-stats">✓${charStats.wins}</div>` : ''}
+                                        <div class="char-emoji">${char.emoji}</div>
+                                        <div class="char-name">${char.name}</div>
+                                        <div class="char-desc">${char.personality.substring(0, 40)}...</div>
+                                        <button class="btn-secondary" style="margin-top: 8px; padding: 6px; font-size: 0.8em;" onclick="event.stopPropagation(); gameState.showBio = '${char.name}'; render();">View Bio</button>
+                                    </div>
+                                `;
+                            }).join('')}
+                            <div class="character-card custom ${gameState.targetChar === 'custom' ? 'selected' : ''}" onclick="gameState.screen = 'customChar'; render();">
+                                <div class="char-emoji">✨</div>
+                                <div class="char-name">Create Custom</div>
+                                <div class="char-desc">Design your own character</div>
+                            </div>
+                        </div>
+                        ${gameState.targetChar && gameState.targetChar !== 'custom' ? '<button class="btn-primary" onclick="gameState.screen = \'location\'; render();">Choose Location</button>' : ''}
+                    </div>
+                `;
+            }
+            else if (gameState.screen === 'customChar') {
+                app.innerHTML = `
+                    <div>
+                        <h2 style="color: #667eea; margin: 20px 0;">✨ Create Your Character</h2>
+                        
+                        <div class="input-group">
+                            <label>Name</label>
+                            <input type="text" id="customName" placeholder="Character name...">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Emoji</label>
+                            <input type="text" id="customEmoji" placeholder="Pick an emoji (e.g., 🌟)" maxlength="2">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Gender</label>
+                            <select id="customGender">
+                                <option value="">Select...</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="nonbinary">Non-binary</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Personality</label>
+                            <textarea id="customPersonality" placeholder="Describe their personality..." rows="2"></textarea>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Attracted to (select all that apply)</label>
+                            <div class="trait-grid">
+                                <div class="trait-btn" id="attr-male" onclick="toggleCustomAttr('male')">👨 Male</div>
+                                <div class="trait-btn" id="attr-female" onclick="toggleCustomAttr('female')">👩 Female</div>
+                                <div class="trait-btn" id="attr-nonbinary" onclick="toggleCustomAttr('nonbinary')">🌈 Non-binary</div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" onclick="createCustomChar()">Create & Continue</button>
+                        <button class="btn-secondary" onclick="gameState.screen = 'selectChar'; render();">Back</button>
+                    </div>
+                `;
+            }
+            else if (gameState.screen === 'location') {
+                const stage = getRelationshipStage(gameState.points);
+                app.innerHTML = `
+                    <div>
+                        <div class="sticky-bar">
+                            <div class="sticky-bar-item">💕 ${gameState.points}/${gameState.requiredPoints}</div>
+                            <div class="sticky-bar-item">🎯 ${gameState.encounterNum}/${gameState.maxEncounters}</div>
+                            ${gameState.streak > 0 ? `<div class="sticky-bar-item">🔥 ${gameState.streak}</div>` : ''}
+                        </div>
+
+                        ${gameState.encounterNum > 0 ? `<div class="relationship-stage">${stage}</div>` : ''}
+
+                        <h2 style="color: #667eea; text-align: center; margin: 20px 0;">Where will you meet ${gameState.targetChar}?</h2>
+                        
+                        <div class="input-group">
+                            <label>Choose Time of Day</label>
+                            <div class="time-grid">
+                                ${times.map(time => `
+                                    <div class="time-btn ${gameState.timeOfDay === time ? 'selected' : ''}" onclick="selectTime('${time}')">
+                                        ${time === 'morning' ? '🌅' : time === 'noon' ? '☀️' : time === 'afternoon' ? '🌤️' : time === 'evening' ? '🌆' : time === 'night' ? '🌙' : '🌃'} ${time}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Choose Location</label>
+                            <div class="location-grid">
+                                ${Object.entries(locations).map(([key, loc]) => `
+                                    <div class="location-card ${gameState.location === key ? 'selected' : ''}" onclick="selectLocation('${key}')">
+                                        <div style="font-size: 2em;">${loc.emoji}</div>
+                                        <div style="font-size: 0.85em; margin-top: 4px;">${loc.name}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        ${gameState.location && gameState.timeOfDay ? '<button class="btn-primary" onclick="gameState.screen = \'encounter\'; render();">Begin Encounter</button>' : ''}
+                    </div>
+                `;
+            }
+            else if (gameState.screen === 'encounter') {
+                const loc = locations[gameState.location];
+                const lastHistory = gameState.actionHistory[gameState.actionHistory.length - 1];
+                
+                app.innerHTML = `
+                    <div>
+                        <div class="sticky-bar">
+                            <div class="sticky-bar-item">💕 ${gameState.points}/${gameState.requiredPoints}</div>
+                            <div class="sticky-bar-item">🎯 ${gameState.encounterNum}/${gameState.maxEncounters}</div>
+                            ${gameState.streak > 0 ? `<div class="sticky-bar-item">🔥 ${gameState.streak}</div>` : ''}
+                            <div class="sticky-bar-item">${loc.emoji} ${loc.name}</div>
+                        </div>
+
+                        <div class="relationship-stage">${getRelationshipStage(gameState.points)}</div>
+
+                        <div class="scene-desc">
+                            ${loc.atmosphere} You spot ${gameState.targetChar}, looking ${['intrigued', 'relaxed', 'focused', 'approachable'][Math.floor(Math.random() * 4)]}...
+                        </div>
+
+                        ${lastHistory ? `
+                            <div class="response-box player-action">
+                                <strong>You:</strong> ${lastHistory.actionText}
+                            </div>
+                            <div class="response-box char-response">
+                                <strong>${gameState.targetChar}:</strong> ${lastHistory.response}
+                                <div style="margin-top: 8px; font-weight: 600;">${lastHistory.points >= 0 ? '+' : ''}${lastHistory.points} points</div>
+                            </div>
+                        ` : ''}
+
+                        <h3 style="color: #667eea; margin: 20px 0;">What do you do?</h3>
+                        
+                        <div class="actions-grid">
+                            ${actions[gameState.location].map((action, i) => `
+                                <button class="action-btn risk-${action.risk}" onclick="takeAction(${i}, '${action.text}')">
+                                    ${action.text}
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div class="custom-action">
+                            <input type="text" id="customAction" placeholder="✨ Or type your own action..." />
+                            <button class="btn-primary" style="width: auto; margin: 0;" onclick="takeCustomAction()">Go</button>
+                        </div>
+
+                        ${gameState.encounterNum >= gameState.maxEncounters ? 
+                            '<div style="margin-top: 20px;"><button class="btn-primary" onclick="endGame()">See Results</button></div>' : 
+                            '<div style="margin-top: 20px;"><button class="btn-primary" onclick="nextEncounter()">Next Encounter</button></div>'}
+                    </div>
+                `;
+            }
+            else if (gameState.screen === 'result') {
+                const success = gameState.points >= gameState.requiredPoints;
+                const grade = gameState.points >= 150 ? 'S' : gameState.points >= 120 ? 'A' : gameState.points >= 100 ? 'B' : gameState.points >= 70 ? 'C' : gameState.points >= 40 ? 'D' : 'F';
+                const bestAction = gameState.actionHistory.length > 0 ? gameState.actionHistory.reduce((max, h) => h.points > max.points ? h : max, gameState.actionHistory[0]) : { actionText: 'None', points: 0 };
+                const worstAction = gameState.actionHistory.length > 0 ? gameState.actionHistory.reduce((min, h) => h.points < min.points ? h : min, gameState.actionHistory[0]) : { actionText: 'None', points: 0 };
+                
+                saveProgress();
+                
+                app.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 4em; margin: 20px 0;">
+                            ${success ? '💕' : '💔'}
+                        </div>
+                        <h2 style="color: ${success ? '#10b981' : '#ef4444'}; margin: 20px 0;">
+                            ${success ? 'Love Blossomed!' : 'Not Quite There...'}
+                        </h2>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value">${gameState.points}</div>
+                                <div class="stat-label">Total Points</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${grade}</div>
+                                <div class="stat-label">Grade</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${gameState.encounterNum}</div>
+                                <div class="stat-label">Encounters</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${gameState.achievements.length}</div>
+                                <div class="stat-label">Achievements</div>
+                            </div>
+                        </div>
+
+                        ${success ? `
+                            <div class="scene-desc" style="margin: 20px 0;">
+                                ${gameState.targetChar} smiles warmly. "I've had an amazing time with you, ${gameState.playerName}. Want to make this official? Dinner this weekend?"
+                            </div>
+                        ` : `
+                            <div class="scene-desc" style="margin: 20px 0;">
+                                ${gameState.targetChar} gives you a polite smile. "It was nice meeting you, but I don't think we're quite the right match. Take care!"
+                            </div>
+                        `}
+
+                        ${gameState.achievements.length > 0 ? `
+                            <div style="margin: 20px 0;">
+                                <h3 style="color: #667eea; margin-bottom: 10px;">🏆 Achievements Unlocked</h3>
+                                ${gameState.achievements.map(a => `
+                                    <div class="achievement">${a.name}: ${a.desc}</div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+
+                        <div style="margin: 20px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 10px;">📊 Your Best & Worst</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div class="stat-card" style="border-color: #10b981;">
+                                    <div style="color: #10b981; font-size: 0.9em; margin-bottom: 8px;">💚 Best Move</div>
+                                    <div style="font-size: 0.85em;">${bestAction.actionText}</div>
+                                    <div style="color: #10b981; font-weight: 600; margin-top: 4px;">+${bestAction.points}</div>
+                                </div>
+                                <div class="stat-card" style="border-color: #ef4444;">
+                                    <div style="color: #ef4444; font-size: 0.9em; margin-bottom: 8px;">😬 Worst Move</div>
+                                    <div style="font-size: 0.85em;">${worstAction.actionText}</div>
+                                    <div style="color: #ef4444; font-weight: 600; margin-top: 4px;">${worstAction.points}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 30px;">
+                            <button class="btn-primary" onclick="quickReplay()">
+                                🔄 Try Again with ${gameState.targetChar}
+                            </button>
+                            <button class="btn-secondary" onclick="resetGame()">
+                                ${success ? '💕 Find New Love' : '💫 Choose Different Character'}
+                            </button>
+                        </div>
+                    </div>
+                    ${renderFooter()}
+                `;
+            }
+        }
+
+        function submitName() {
+            const name = document.getElementById('nameInput').value.trim();
+            if (name) {
+                gameState.playerName = name;
+                gameState.screen = 'gender';
+                render();
+            }
+        }
+
+        function selectGender(gender) {
+            gameState.playerGender = gender;
+            render();
+        }
+
+        function selectTrait(category, value) {
+            gameState.playerTraits[category] = value;
+            render();
+        }
+
+        function toggleInterest(interest) {
+            const interests = gameState.playerTraits.interests;
+            if (interests.includes(interest)) {
+                gameState.playerTraits.interests = interests.filter(i => i !== interest);
+            } else if (interests.length < 2) {
+                gameState.playerTraits.interests.push(interest);
+            }
+            render();
+        }
+
+        function selectChar(name) {
+            gameState.targetChar = name;
+            render();
+        }
+
+        let customAttracted = [];
+        function toggleCustomAttr(gender) {
+            const btn = document.getElementById('attr-' + gender);
+            if (customAttracted.includes(gender)) {
+                customAttracted = customAttracted.filter(g => g !== gender);
+                btn.classList.remove('selected');
+            } else {
+                customAttracted.push(gender);
+                btn.classList.add('selected');
+            }
+        }
+
+        function createCustomChar() {
+            const name = document.getElementById('customName').value.trim();
+            const emoji = document.getElementById('customEmoji').value.trim();
+            const gender = document.getElementById('customGender').value;
+            const personality = document.getElementById('customPersonality').value.trim();
+            
+            if (!name || !emoji || !gender || !personality || customAttracted.length === 0) {
+                alert('Please fill all fields!');
+                return;
+            }
+            
+            gameState.customChar = {
+                name, emoji, gender, personality,
+                preferences: {
+                    locations: ['cafe', 'park', 'bar'],
+                    times: ['afternoon', 'evening'],
+                    attracted_to: customAttracted,
+                    age: ['young', 'mid', 'mature']
+                },
+                interests: ['arts', 'music'],
+                speech: {
+                    great: ["That's amazing!", "I love that!"],
+                    good: ["Nice!", "I like it."],
+                    poor: ["Hmm, okay.", "Not sure about that."],
+                    bad: ["No thanks.", "That's not for me."]
+                }
+            };
+            
+            gameState.targetChar = name;
+            customAttracted = [];
+            gameState.screen = 'location';
+            render();
+        }
+
+        function selectTime(time) {
+            gameState.timeOfDay = time;
+            render();
+        }
+
+        function selectLocation(loc) {
+            gameState.location = loc;
+            render();
+        }
+
+        function takeAction(index, actionText) {
+            try {
+                const action = actions[gameState.location][index];
+                const repeated = gameState.lastAction === actionText;
+                const points = calculatePoints(action, repeated);
+                const response = getResponse(points, gameState.targetChar);
+                
+                gameState.actionHistory.push({ actionText, points, response });
+                gameState.points += points;
+                gameState.encounterNum++;
+                
+                if (points > 0) {
+                    gameState.streak++;
+                } else {
+                    gameState.streak = 0;
+                }
+                
+                gameState.lastAction = actionText;
+                checkAchievements();
+                
+                if (gameState.encounterNum >= gameState.maxEncounters) {
+                    gameState.screen = 'result';
+                }
+                
+                render();
+            } catch (error) {
+                console.error('Error in takeAction:', error);
+                alert('Oops! Something went wrong. Please refresh and try again.');
+            }
+        }
+
+        function takeCustomAction() {
+            try {
+                const input = document.getElementById('customAction');
+                if (!input) return;
+                
+                const text = input.value.trim();
+                if (!text) {
+                    alert('Please type an action first!');
+                    return;
+                }
+                
+                const result = analyzeCustomAction(text);
+                const actionText = text;
+                
+                gameState.actionHistory.push({ actionText, points: result.points, response: result.response });
+                gameState.points += result.points;
+                gameState.encounterNum++;
+                
+                if (result.points > 0) {
+                    gameState.streak++;
+                } else {
+                    gameState.streak = 0;
+                }
+                
+                checkAchievements();
+                
+                if (gameState.encounterNum >= gameState.maxEncounters) {
+                    gameState.screen = 'result';
+                }
+                
+                render();
+            } catch (error) {
+                console.error('Error in takeCustomAction:', error);
+                alert('Oops! Something went wrong. Please try again.');
+            }
+        }
+
+        function nextEncounter() {
+            gameState.screen = 'location';
+            gameState.location = null;
+            gameState.timeOfDay = null;
+            render();
+        }
+
+        function endGame() {
+            gameState.screen = 'result';
+            render();
+        }
+
+        function quickReplay() {
+            const targetChar = gameState.targetChar;
+            const customChar = gameState.customChar;
+            const playerName = gameState.playerName;
+            const playerGender = gameState.playerGender;
+            const playerTraits = {...gameState.playerTraits};
+            
+            gameState = {
+                screen: 'location',
+                playerName,
+                playerGender,
+                playerTraits,
+                targetChar,
+                location: null,
+                timeOfDay: null,
+                encounterNum: 0,
+                maxEncounters: 8,
+                points: 0,
+                requiredPoints: 100,
+                actionHistory: [],
+                achievements: [],
+                streak: 0,
+                lastAction: null,
+                relationshipStage: 'Stranger',
+                customChar,
+                showBio: null,
+                showAbout: false
+            };
+            render();
+        }
+
+        function resetGame() {
+            gameState = {
+                screen: 'menu',
+                playerName: '',
+                playerGender: null,
+                playerTraits: { age: null, personality: null, interests: [], style: null },
+                targetChar: null,
+                location: null,
+                timeOfDay: null,
+                encounterNum: 0,
+                maxEncounters: 8,
+                points: 0,
+                requiredPoints: 100,
+                actionHistory: [],
+                achievements: [],
+                streak: 0,
+                lastAction: null,
+                relationshipStage: 'Stranger',
+                customChar: null,
+                showBio: null,
+                showAbout: false
+            };
+            render();
+        }
+
+        render();
+    </script>
+</body>
+</html>

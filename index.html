@@ -333,6 +333,80 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        @keyframes pointPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes pointShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px); }
+            40% { transform: translateX(6px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .point-positive {
+            animation: pointPulse 0.5s ease-out;
+        }
+
+        .point-negative {
+            animation: pointShake 0.4s ease-out;
+        }
+
+        .score-breakdown {
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            font-size: 0.85em;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            opacity: 0.9;
+        }
+
+        .breakdown-item .value-positive { color: #a7f3d0; font-weight: 600; }
+        .breakdown-item .value-negative { color: #fca5a5; font-weight: 600; }
+
+        .memory-hints {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+
+        .memory-hint {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            color: #0369a1;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.78em;
+            font-weight: 500;
+        }
+
+        .location-preferred {
+            position: relative;
+        }
+
+        .location-preferred::after {
+            content: '💕';
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 0.7em;
+        }
+
         .btn-primary {
             padding: 14px 32px;
             font-size: 1.1em;
@@ -872,12 +946,62 @@
             relationshipStage: 'Stranger',
             customChar: null,
             showBio: null,
-            showAbout: false
+            showAbout: false,
+            lastPointChange: undefined,
+            customActionCount: 0,
+            charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
         };
+
+        function updateMemory(actionText, points) {
+            const mem = gameState.charMemory;
+            const lower = actionText.toLowerCase();
+            if (points > 10) {
+                mem.trustLevel += 2;
+            } else if (points > 0) {
+                mem.trustLevel += 1;
+            } else if (points < -5) {
+                mem.trustLevel = Math.max(0, mem.trustLevel - 2);
+            } else if (points < 0) {
+                mem.trustLevel = Math.max(0, mem.trustLevel - 1);
+            }
+            const humorWords = ['joke', 'funny', 'laugh', 'humor', 'pun', 'comedy'];
+            const deepWords = ['discuss', 'philosophy', 'literature', 'meaning', 'think', 'intellectual', 'knowledge'];
+            const physicalWords = ['dance', 'workout', 'jog', 'swim', 'volleyball', 'gym', 'sport'];
+            const bragWords = ['show off', 'brag', 'best', 'amazing at', 'unsolicited', 'credit'];
+            const rudeWords = ['stare', 'ignore', 'complain', 'argue', 'spill', 'kick', 'loud'];
+
+            if (humorWords.some(w => lower.includes(w)) && points > 0) mem.likesHumor = true;
+            if (deepWords.some(w => lower.includes(w)) && points > 0) mem.likesDeepTalk = true;
+            if (physicalWords.some(w => lower.includes(w)) && points > 0) mem.likesPhysical = true;
+            if (bragWords.some(w => lower.includes(w)) && points < 0) mem.hateBragging = true;
+            if (rudeWords.some(w => lower.includes(w)) && points < 0) mem.hateRude = true;
+
+            if (points > 5 && !mem.positiveTopics.includes(actionText)) {
+                mem.positiveTopics.push(actionText);
+                if (mem.positiveTopics.length > 5) mem.positiveTopics.shift();
+            }
+            if (points < -3 && !mem.negativeTopics.includes(actionText)) {
+                mem.negativeTopics.push(actionText);
+                if (mem.negativeTopics.length > 5) mem.negativeTopics.shift();
+            }
+        }
+
+        function getMemoryHints() {
+            const mem = gameState.charMemory;
+            const hints = [];
+            if (mem.trustLevel >= 5) hints.push('🤝 Trusts you');
+            else if (mem.trustLevel >= 3) hints.push('🤝 Warming up');
+            if (mem.likesHumor) hints.push('😄 Likes humor');
+            if (mem.likesDeepTalk) hints.push('🧠 Enjoys deep talk');
+            if (mem.likesPhysical) hints.push('💪 Likes physical activities');
+            if (mem.hateBragging) hints.push('🚫 Hates bragging');
+            if (mem.hateRude) hints.push('🚫 Dislikes rudeness');
+            return hints;
+        }
 
         let stats = JSON.parse(localStorage.getItem('heartQuestStats') || '{}');
 
-        const VERSION = 'v1.0.0';
+        const VERSION = 'v2.0.0';
 
         function showAbout() {
             gameState.showAbout = true;
@@ -927,64 +1051,133 @@
         }
 
         function calculatePoints(action, repeated) {
-            let points = action.base;
             const char = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
-            
-            if (char.preferences.locations.includes(gameState.location)) points += 5;
-            if (char.preferences.times.includes(gameState.timeOfDay)) points += 5;
-            if (gameState.playerTraits.age && char.preferences.age.includes(gameState.playerTraits.age)) points += 8;
-            if (char.preferences.attracted_to.includes(gameState.playerGender)) points += 10;
-            else points -= 5;
-            if (gameState.playerTraits.interests.some(i => char.interests.includes(i))) points += 6;
-            if (gameState.playerTraits.personality === 'outgoing' && ['bar', 'club'].includes(gameState.location)) points += 4;
-            if (gameState.playerTraits.personality === 'reserved' && ['library', 'cafe'].includes(gameState.location)) points += 4;
-            if (gameState.playerTraits.style === 'professional' && gameState.location === 'work') points += 5;
-            if (gameState.playerTraits.style === 'casual' && ['park', 'beach'].includes(gameState.location)) points += 5;
-            if (repeated) points = Math.floor(points * 0.4);
-            if (gameState.streak >= 3) points += 3;
-            
-            return points;
+            const breakdown = [];
+            let points = action.base;
+            breakdown.push({ label: 'Base', value: action.base });
+
+            if (char.preferences.locations.includes(gameState.location)) {
+                points += 5;
+                breakdown.push({ label: '📍 Location match', value: 5 });
+            }
+            if (char.preferences.times.includes(gameState.timeOfDay)) {
+                points += 5;
+                breakdown.push({ label: '⏰ Time match', value: 5 });
+            }
+            if (gameState.playerTraits.age && char.preferences.age.includes(gameState.playerTraits.age)) {
+                points += 8;
+                breakdown.push({ label: '🎂 Age match', value: 8 });
+            }
+            if (char.preferences.attracted_to.includes(gameState.playerGender)) {
+                points += 10;
+                breakdown.push({ label: '💕 Attraction match', value: 10 });
+            } else {
+                points -= 5;
+                breakdown.push({ label: '💔 No attraction', value: -5 });
+            }
+            if (gameState.playerTraits.interests.some(i => char.interests.includes(i))) {
+                points += 6;
+                breakdown.push({ label: '🎯 Shared interest', value: 6 });
+            }
+            if (gameState.playerTraits.personality === 'outgoing' && ['bar', 'club'].includes(gameState.location)) {
+                points += 4;
+                breakdown.push({ label: '😄 Personality fit', value: 4 });
+            }
+            if (gameState.playerTraits.personality === 'reserved' && ['library', 'cafe'].includes(gameState.location)) {
+                points += 4;
+                breakdown.push({ label: '😌 Personality fit', value: 4 });
+            }
+            if (gameState.playerTraits.style === 'professional' && gameState.location === 'work') {
+                points += 5;
+                breakdown.push({ label: '💼 Style bonus', value: 5 });
+            }
+            if (gameState.playerTraits.style === 'casual' && ['park', 'beach'].includes(gameState.location)) {
+                points += 5;
+                breakdown.push({ label: '👕 Style bonus', value: 5 });
+            }
+            // Character memory: trust bonus
+            const memory = gameState.charMemory;
+            if (memory.trustLevel > 3) {
+                const trustBonus = Math.min(Math.floor(memory.trustLevel / 2), 5);
+                points += trustBonus;
+                breakdown.push({ label: '🤝 Trust bonus', value: trustBonus });
+            }
+            if (gameState.streak >= 3) {
+                points += 3;
+                breakdown.push({ label: '🔥 Streak bonus', value: 3 });
+            }
+            if (repeated) {
+                const penalty = points - Math.floor(points * 0.4);
+                points = Math.floor(points * 0.4);
+                breakdown.push({ label: '🔁 Repeat penalty', value: -penalty });
+            }
+
+            return { total: points, breakdown };
         }
 
         function analyzeCustomAction(text) {
             const lower = text.toLowerCase();
             const char = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
-            
+            const stage = getRelationshipStage(gameState.points);
+            const mem = gameState.charMemory;
+
             const compliments = ['beautiful', 'gorgeous', 'amazing', 'wonderful', 'stunning', 'incredible'];
             const help = ['help', 'assist', 'support', 'join', 'together'];
             const negative = ['stupid', 'ugly', 'boring', 'dumb', 'weird', 'creepy'];
-            const romantic = ['love', 'kiss', 'date', 'marry', 'forever'];
-            
+            const romantic = ['love', 'kiss', 'date', 'marry', 'forever', 'heart', 'adore'];
+            const humorWords = ['joke', 'funny', 'laugh', 'humor', 'pun'];
+            const deepWords = ['discuss', 'philosophy', 'literature', 'meaning', 'think', 'books'];
+
             if (negative.some(w => lower.includes(w))) {
-                return { points: -10, response: random(char.speech.bad) };
+                return { points: -10, response: random(char.speech.bad), breakdown: [{ label: 'Negative words', value: -10 }] };
             }
-            
+
             if (romantic.some(w => lower.includes(w))) {
-                const success = Math.random() > 0.5;
-                return success ? 
-                    { points: 20, response: random(char.speech.great) } : 
-                    { points: -8, response: random(char.speech.bad) };
+                let successChance;
+                if (stage.includes('Partner')) successChance = 0.95;
+                else if (stage.includes('Love Interest')) successChance = 0.80;
+                else if (stage.includes('Friend')) successChance = 0.55;
+                else if (stage.includes('Acquaintance')) successChance = 0.25;
+                else successChance = 0.10;
+                if (mem.trustLevel >= 5) successChance = Math.min(successChance + 0.15, 0.95);
+                const success = Math.random() < successChance;
+                const breakdown = [{ label: 'Romantic action', value: success ? 20 : -8 }];
+                if (!success && stage.includes('Stranger')) breakdown.push({ label: '⚠️ Too early!', value: 0 });
+                return success ?
+                    { points: 20, response: random(char.speech.great), breakdown } :
+                    { points: -8, response: (stage.includes('Stranger') || stage.includes('Acquaintance')) ? `"Whoa, we just met... that's a bit forward." ${random(char.speech.poor)}` : random(char.speech.bad), breakdown };
             }
-            
+
             if (compliments.some(w => lower.includes(w))) {
-                return { points: 10, response: random(char.speech.good) };
+                const pts = mem.trustLevel >= 3 ? 14 : 10;
+                return { points: pts, response: random(char.speech.good), breakdown: [{ label: 'Compliment', value: pts }] };
             }
-            
+
+            if (humorWords.some(w => lower.includes(w))) {
+                const pts = mem.likesHumor ? 16 : 8;
+                return { points: pts, response: mem.likesHumor ? `Ha! You know I love humor! ${random(char.speech.great)}` : random(char.speech.good), breakdown: [{ label: mem.likesHumor ? 'Humor (they love it!)' : 'Humor', value: pts }] };
+            }
+
+            if (deepWords.some(w => lower.includes(w))) {
+                const pts = mem.likesDeepTalk ? 16 : 10;
+                return { points: pts, response: mem.likesDeepTalk ? `I love these conversations with you! ${random(char.speech.great)}` : random(char.speech.good), breakdown: [{ label: mem.likesDeepTalk ? 'Deep talk (they love it!)' : 'Deep talk', value: pts }] };
+            }
+
             if (help.some(w => lower.includes(w))) {
-                return { points: 14, response: random(char.speech.good) };
+                return { points: 14, response: random(char.speech.good), breakdown: [{ label: 'Helpful action', value: 14 }] };
             }
-            
+
             if (lower.includes('yourself') || lower.includes('be yourself')) {
-                return { points: 10, response: random(char.speech.good) };
+                return { points: 10, response: random(char.speech.good), breakdown: [{ label: 'Authentic', value: 10 }] };
             }
-            
+
             if (lower.includes(char.name.toLowerCase())) {
-                return { points: 5, response: "You remembered my name! " + random(char.speech.good) };
+                return { points: 5, response: "You remembered my name! " + random(char.speech.good), breakdown: [{ label: 'Used their name', value: 5 }] };
             }
-            
-            const randomPoints = Math.floor(Math.random() * 20) - 5;
+
+            const randomPoints = Math.floor(Math.random() * 16) - 3;
             const responseLevel = randomPoints > 10 ? 'great' : randomPoints > 5 ? 'good' : randomPoints > 0 ? 'poor' : 'bad';
-            return { points: randomPoints, response: random(char.speech[responseLevel]) };
+            return { points: randomPoints, response: random(char.speech[responseLevel]), breakdown: [{ label: 'Custom action', value: randomPoints }] };
         }
 
         function getResponse(points, charName) {
@@ -996,12 +1189,33 @@
         }
 
         function checkAchievements() {
-            if (gameState.streak >= 5 && !gameState.achievements.find(a => a.id === 'streak5')) {
-                gameState.achievements.push({ id: 'streak5', name: '🔥 On Fire', desc: '5 streak combo!' });
-            }
-            if (gameState.points >= 100 && !gameState.achievements.find(a => a.id === 'century')) {
-                gameState.achievements.push({ id: 'century', name: '💯 Century', desc: 'Reached 100 points!' });
-            }
+            const a = gameState.achievements;
+            const has = id => a.find(x => x.id === id);
+
+            if (gameState.streak >= 5 && !has('streak5'))
+                a.push({ id: 'streak5', name: '🔥 On Fire', desc: '5 positive actions in a row!' });
+            if (gameState.streak >= 8 && !has('streak8'))
+                a.push({ id: 'streak8', name: '🌟 Unstoppable', desc: '8 streak combo!' });
+            if (gameState.points >= 100 && !has('century'))
+                a.push({ id: 'century', name: '💯 Century', desc: 'Reached 100 points!' });
+            if (gameState.points >= 150 && !has('srank'))
+                a.push({ id: 'srank', name: '👑 S-Rank', desc: 'Scored 150+ points!' });
+            if (gameState.encounterNum === 1 && gameState.points >= 20 && !has('firstImpression'))
+                a.push({ id: 'firstImpression', name: '✨ First Impression', desc: '20+ points on first encounter!' });
+            if (gameState.charMemory.trustLevel >= 8 && !has('trusted'))
+                a.push({ id: 'trusted', name: '🤝 Trusted Friend', desc: 'Reached high trust level!' });
+            if ((gameState.customActionCount || 0) >= 3 && !has('creative'))
+                a.push({ id: 'creative', name: '🎨 Creative Soul', desc: 'Used 3+ custom actions!' });
+
+            const locationsVisited = new Set();
+            gameState.actionHistory.forEach(h => { if (h.location) locationsVisited.add(h.location); });
+            if (gameState.location) locationsVisited.add(gameState.location);
+            if (locationsVisited.size >= 4 && !has('explorer'))
+                a.push({ id: 'explorer', name: '🗺️ Explorer', desc: 'Visited 4+ different locations!' });
+
+            const allPositive = gameState.actionHistory.length >= 4 && gameState.actionHistory.every(h => h.points > 0);
+            if (allPositive && gameState.actionHistory.length >= 4 && !has('charmer'))
+                a.push({ id: 'charmer', name: '😍 Natural Charmer', desc: 'Every action was positive!' });
         }
 
         function render() {
@@ -1014,7 +1228,7 @@
                             <div class="version">${VERSION}</div>
                             
                             <div class="creator">Created by Hulki Okan Tabak</div>
-                            <div class="copyright">© 2025</div>
+                            <div class="copyright">© 2025-2026</div>
                             
                             <div class="description">
                                 A romantic adventure where your choices matter. Navigate love through unique characters across diverse locations, building relationships one encounter at a time.
@@ -1277,6 +1491,8 @@
             }
             else if (gameState.screen === 'location') {
                 const stage = getRelationshipStage(gameState.points);
+                const char = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
+                const memHints = getMemoryHints();
                 app.innerHTML = `
                     <div>
                         <div class="sticky-bar">
@@ -1287,28 +1503,41 @@
 
                         ${gameState.encounterNum > 0 ? `<div class="relationship-stage">${stage}</div>` : ''}
 
+                        ${memHints.length > 0 ? `
+                            <div class="info-box" style="margin-bottom: 15px;">
+                                <strong>🧠 What you've learned about ${gameState.targetChar}:</strong>
+                                <div class="memory-hints" style="margin-top: 6px;">
+                                    ${memHints.map(h => `<span class="memory-hint">${h}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
                         <h2 style="color: #667eea; text-align: center; margin: 20px 0;">Where will you meet ${gameState.targetChar}?</h2>
-                        
+
                         <div class="input-group">
                             <label>Choose Time of Day</label>
                             <div class="time-grid">
-                                ${times.map(time => `
-                                    <div class="time-btn ${gameState.timeOfDay === time ? 'selected' : ''}" onclick="selectTime('${time}')">
+                                ${times.map(time => {
+                                    const preferred = char && char.preferences.times.includes(time);
+                                    return `
+                                    <div class="time-btn ${gameState.timeOfDay === time ? 'selected' : ''} ${preferred ? 'location-preferred' : ''}" onclick="selectTime('${time}')">
                                         ${time === 'morning' ? '🌅' : time === 'noon' ? '☀️' : time === 'afternoon' ? '🌤️' : time === 'evening' ? '🌆' : time === 'night' ? '🌙' : '🌃'} ${time}
                                     </div>
-                                `).join('')}
+                                `}).join('')}
                             </div>
                         </div>
 
                         <div class="input-group">
-                            <label>Choose Location</label>
+                            <label>Choose Location <span style="font-size: 0.8em; color: #999;">(💕 = ${gameState.targetChar}'s favorite)</span></label>
                             <div class="location-grid">
-                                ${Object.entries(locations).map(([key, loc]) => `
-                                    <div class="location-card ${gameState.location === key ? 'selected' : ''}" onclick="selectLocation('${key}')">
+                                ${Object.entries(locations).map(([key, loc]) => {
+                                    const preferred = char && char.preferences.locations.includes(key);
+                                    return `
+                                    <div class="location-card ${gameState.location === key ? 'selected' : ''} ${preferred ? 'location-preferred' : ''}" onclick="selectLocation('${key}')">
                                         <div style="font-size: 2em;">${loc.emoji}</div>
                                         <div style="font-size: 0.85em; margin-top: 4px;">${loc.name}</div>
                                     </div>
-                                `).join('')}
+                                `}).join('')}
                             </div>
                         </div>
 
@@ -1319,49 +1548,98 @@
             else if (gameState.screen === 'encounter') {
                 const loc = locations[gameState.location];
                 const lastHistory = gameState.actionHistory[gameState.actionHistory.length - 1];
-                
+                const stage = getRelationshipStage(gameState.points);
+                const memHints = getMemoryHints();
+                const pointAnim = gameState.lastPointChange !== undefined ? (gameState.lastPointChange >= 0 ? 'point-positive' : 'point-negative') : '';
+
+                // Dynamic scene descriptions based on stage and encounter number
+                const sceneDescriptions = {
+                    '👋 Stranger': [
+                        `${loc.atmosphere} You notice ${gameState.targetChar} nearby. They haven't seen you yet...`,
+                        `${loc.atmosphere} ${gameState.targetChar} is here. You catch a brief glance.`,
+                        `${loc.atmosphere} There's ${gameState.targetChar}, minding their own business. Time to make a move?`
+                    ],
+                    '🤝 Acquaintance': [
+                        `${loc.atmosphere} ${gameState.targetChar} spots you and gives a small wave of recognition.`,
+                        `${loc.atmosphere} "Oh hey, it's you again!" ${gameState.targetChar} says with a slight smile.`,
+                        `${loc.atmosphere} ${gameState.targetChar} seems comfortable seeing you here.`
+                    ],
+                    '👥 Friend': [
+                        `${loc.atmosphere} ${gameState.targetChar} lights up when they see you. "Hey ${gameState.playerName}!"`,
+                        `${loc.atmosphere} ${gameState.targetChar} waves you over eagerly. Things are going well!`,
+                        `${loc.atmosphere} You and ${gameState.targetChar} share a warm greeting. The connection is growing.`
+                    ],
+                    '💕 Love Interest': [
+                        `${loc.atmosphere} ${gameState.targetChar}'s eyes light up the moment they see you. There's definitely something here...`,
+                        `${loc.atmosphere} ${gameState.targetChar} blushes slightly as you approach. The chemistry is undeniable.`,
+                        `${loc.atmosphere} ${gameState.targetChar} saved a spot for you. "I was hoping you'd come," they say.`
+                    ],
+                    '💑 Partner': [
+                        `${loc.atmosphere} ${gameState.targetChar} greets you with a warm embrace. You're inseparable now.`,
+                        `${loc.atmosphere} ${gameState.targetChar} intertwines their hand with yours. Pure bliss.`
+                    ]
+                };
+                const sceneOptions = sceneDescriptions[stage] || sceneDescriptions['👋 Stranger'];
+                const sceneDesc = sceneOptions[gameState.encounterNum % sceneOptions.length];
+
                 app.innerHTML = `
                     <div>
                         <div class="sticky-bar">
-                            <div class="sticky-bar-item">💕 ${gameState.points}/${gameState.requiredPoints}</div>
+                            <div class="sticky-bar-item ${pointAnim}">💕 ${gameState.points}/${gameState.requiredPoints}</div>
                             <div class="sticky-bar-item">🎯 ${gameState.encounterNum}/${gameState.maxEncounters}</div>
                             ${gameState.streak > 0 ? `<div class="sticky-bar-item">🔥 ${gameState.streak}</div>` : ''}
                             <div class="sticky-bar-item">${loc.emoji} ${loc.name}</div>
                         </div>
 
-                        <div class="relationship-stage">${getRelationshipStage(gameState.points)}</div>
+                        <div class="relationship-stage">${stage}</div>
+
+                        ${memHints.length > 0 ? `
+                            <div class="memory-hints" style="justify-content: center; margin-bottom: 8px;">
+                                ${memHints.map(h => `<span class="memory-hint">${h}</span>`).join('')}
+                            </div>
+                        ` : ''}
 
                         <div class="scene-desc">
-                            ${loc.atmosphere} You spot ${gameState.targetChar}, looking ${['intrigued', 'relaxed', 'focused', 'approachable'][Math.floor(Math.random() * 4)]}...
+                            ${sceneDesc}
                         </div>
 
                         ${lastHistory ? `
-                            <div class="response-box player-action">
+                            <div class="response-box player-action" style="animation: slideUp 0.3s ease-out;">
                                 <strong>You:</strong> ${lastHistory.actionText}
                             </div>
-                            <div class="response-box char-response">
+                            <div class="response-box char-response ${pointAnim}" style="animation: slideUp 0.4s ease-out;">
                                 <strong>${gameState.targetChar}:</strong> ${lastHistory.response}
-                                <div style="margin-top: 8px; font-weight: 600;">${lastHistory.points >= 0 ? '+' : ''}${lastHistory.points} points</div>
+                                <div style="margin-top: 8px; font-weight: 600; font-size: 1.1em;">${lastHistory.points >= 0 ? '+' : ''}${lastHistory.points} points</div>
+                                ${lastHistory.breakdown && lastHistory.breakdown.length > 0 ? `
+                                    <div class="score-breakdown">
+                                        ${lastHistory.breakdown.map(b => `
+                                            <div class="breakdown-item">
+                                                <span>${b.label}</span>
+                                                <span class="${b.value >= 0 ? 'value-positive' : 'value-negative'}">${b.value >= 0 ? '+' : ''}${b.value}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
                             </div>
                         ` : ''}
 
                         <h3 style="color: #667eea; margin: 20px 0;">What do you do?</h3>
-                        
+
                         <div class="actions-grid">
                             ${actions[gameState.location].map((action, i) => `
-                                <button class="action-btn risk-${action.risk}" onclick="takeAction(${i}, '${action.text}')">
+                                <button class="action-btn risk-${action.risk}" onclick="takeAction(${i}, '${action.text.replace(/'/g, "\\'")}')">
                                     ${action.text}
                                 </button>
                             `).join('')}
                         </div>
 
                         <div class="custom-action">
-                            <input type="text" id="customAction" placeholder="✨ Or type your own action..." />
+                            <input type="text" id="customAction" placeholder="✨ Or type your own action..." onkeydown="if(event.key==='Enter')takeCustomAction()" />
                             <button class="btn-primary" style="width: auto; margin: 0;" onclick="takeCustomAction()">Go</button>
                         </div>
 
-                        ${gameState.encounterNum >= gameState.maxEncounters ? 
-                            '<div style="margin-top: 20px;"><button class="btn-primary" onclick="endGame()">See Results</button></div>' : 
+                        ${gameState.encounterNum >= gameState.maxEncounters ?
+                            '<div style="margin-top: 20px;"><button class="btn-primary" onclick="endGame()">See Results</button></div>' :
                             '<div style="margin-top: 20px;"><button class="btn-primary" onclick="nextEncounter()">Next Encounter</button></div>'}
                     </div>
                 `;
@@ -1436,6 +1714,16 @@
                                 </div>
                             </div>
                         </div>
+
+                        ${getMemoryHints().length > 0 ? `
+                            <div style="margin: 20px 0;">
+                                <h3 style="color: #667eea; margin-bottom: 10px;">🧠 What You Learned About ${gameState.targetChar}</h3>
+                                <div class="memory-hints" style="justify-content: center;">
+                                    ${getMemoryHints().map(h => `<span class="memory-hint">${h}</span>`).join('')}
+                                </div>
+                                <div style="font-size: 0.85em; color: #666; margin-top: 8px;">Trust Level: ${'❤️'.repeat(Math.min(Math.floor(gameState.charMemory.trustLevel / 2), 5))}${'🤍'.repeat(5 - Math.min(Math.floor(gameState.charMemory.trustLevel / 2), 5))}</div>
+                            </div>
+                        ` : ''}
 
                         <div style="margin-top: 30px;">
                             <button class="btn-primary" onclick="quickReplay()">
@@ -1545,26 +1833,29 @@
             try {
                 const action = actions[gameState.location][index];
                 const repeated = gameState.lastAction === actionText;
-                const points = calculatePoints(action, repeated);
+                const result = calculatePoints(action, repeated);
+                const points = result.total;
                 const response = getResponse(points, gameState.targetChar);
-                
-                gameState.actionHistory.push({ actionText, points, response });
+
+                updateMemory(actionText, points);
+                gameState.actionHistory.push({ actionText, points, response, breakdown: result.breakdown, location: gameState.location });
                 gameState.points += points;
                 gameState.encounterNum++;
-                
+                gameState.lastPointChange = points;
+
                 if (points > 0) {
                     gameState.streak++;
                 } else {
                     gameState.streak = 0;
                 }
-                
+
                 gameState.lastAction = actionText;
                 checkAchievements();
-                
+
                 if (gameState.encounterNum >= gameState.maxEncounters) {
                     gameState.screen = 'result';
                 }
-                
+
                 render();
             } catch (error) {
                 console.error('Error in takeAction:', error);
@@ -1576,32 +1867,35 @@
             try {
                 const input = document.getElementById('customAction');
                 if (!input) return;
-                
+
                 const text = input.value.trim();
                 if (!text) {
                     alert('Please type an action first!');
                     return;
                 }
-                
+
                 const result = analyzeCustomAction(text);
                 const actionText = text;
-                
-                gameState.actionHistory.push({ actionText, points: result.points, response: result.response });
+
+                updateMemory(actionText, result.points);
+                gameState.actionHistory.push({ actionText, points: result.points, response: result.response, breakdown: result.breakdown || [], location: gameState.location });
                 gameState.points += result.points;
                 gameState.encounterNum++;
-                
+                gameState.lastPointChange = result.points;
+                gameState.customActionCount = (gameState.customActionCount || 0) + 1;
+
                 if (result.points > 0) {
                     gameState.streak++;
                 } else {
                     gameState.streak = 0;
                 }
-                
+
                 checkAchievements();
-                
+
                 if (gameState.encounterNum >= gameState.maxEncounters) {
                     gameState.screen = 'result';
                 }
-                
+
                 render();
             } catch (error) {
                 console.error('Error in takeCustomAction:', error);
@@ -1627,7 +1921,7 @@
             const playerName = gameState.playerName;
             const playerGender = gameState.playerGender;
             const playerTraits = {...gameState.playerTraits};
-            
+
             gameState = {
                 screen: 'location',
                 playerName,
@@ -1644,10 +1938,13 @@
                 achievements: [],
                 streak: 0,
                 lastAction: null,
+                lastPointChange: undefined,
+                customActionCount: 0,
                 relationshipStage: 'Stranger',
                 customChar,
                 showBio: null,
-                showAbout: false
+                showAbout: false,
+                charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
             };
             render();
         }
@@ -1669,10 +1966,13 @@
                 achievements: [],
                 streak: 0,
                 lastAction: null,
+                lastPointChange: undefined,
+                customActionCount: 0,
                 relationshipStage: 'Stranger',
                 customChar: null,
                 showBio: null,
-                showAbout: false
+                showAbout: false,
+                charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
             };
             render();
         }

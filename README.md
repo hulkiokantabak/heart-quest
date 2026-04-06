@@ -1,31 +1,31 @@
-# Heart Quest — A Dating Game
+# Heart Quest
 
-A browser-based dating simulator with 12 characters, 10 locations, and 80+ actions.
+A browser dating simulator. 12 characters. 10 locations. 80+ actions. One goal.
 
 ## [>>> PLAY NOW <<<](https://hulkiokantabak.github.io/heart-quest/)
 
-No download needed — runs in your browser.
+No download needed — runs in your browser on desktop and mobile.
 
 ## How to Play
 
-1. Create your character — name, personality, interests, style
-2. Choose who to meet from 12 unique characters
-3. Pick locations and times for your encounters
-4. Perform actions to earn relationship points
-5. Reach 100 points to win their heart
+- Create your character — pick your name, gender, traits, and interests
+- Choose a location and approach one of 12 romanceable characters
+- Take actions, write custom dialogue, or pick from suggestions
+- Build the relationship from Stranger → Interested → Dating → Committed
+- Reach 100 relationship points to complete the quest
 
 ## Features
 
-- 12 characters with distinct personalities
-- 10 locations to explore
-- 80+ actions to choose from
-- Compatibility matching system
-- Memory system — characters remember your choices
-- Achievement tracking
-- Stats saved locally between sessions
+- 12 characters with distinct personalities, preferences, and memory
+- 10 locations with time-of-day mechanics
+- Custom action input — write anything, the game analyses your tone
+- Character memory system — they remember what you said and did
+- Achievement system with unlock criteria
+- 8 turns per game session
+- Progress saved automatically
 
 ## Play It
 
 **https://hulkiokantabak.github.io/heart-quest/**
 
-Built with vanilla JavaScript — no install, just play.
+Built with vanilla JavaScript. No frameworks, no build step.

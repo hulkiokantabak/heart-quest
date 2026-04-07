@@ -1009,8 +1009,14 @@
             showAbout: false,
             lastPointChange: undefined,
             customActionCount: 0,
+            repeatPenaltyTaught: false,
+            resultRevealed: false,
+            progressSaved: false,
+            sessionStart: null,
             charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
         };
+
+        let resultRevealTimeout = null;
 
         function updateMemory(actionText, points) {
             const mem = gameState.charMemory;
@@ -1169,7 +1175,11 @@
             if (repeated) {
                 const penalty = points - Math.floor(points * 0.4);
                 points = Math.floor(points * 0.4);
-                breakdown.push({ label: '🔁 Repeat penalty', value: -penalty });
+                const repeatLabel = !gameState.repeatPenaltyTaught
+                    ? '⚠️ They\'ve seen this before'
+                    : '🔁 Repeat penalty';
+                breakdown.push({ label: repeatLabel, value: -penalty });
+                gameState.repeatPenaltyTaught = true;
             }
 
             return { total: points, breakdown };
@@ -1242,10 +1252,30 @@
             return { points: randomPoints, response: random(char.speech[responseLevel]), breakdown: [{ label: 'Improvised action', value: randomPoints }] };
         }
 
+        function getMemoryLine() {
+            const mem = gameState.charMemory;
+            if (Math.random() > 0.20) return '';
+            if (mem.positiveTopics.length > 0 && Math.random() > 0.35) {
+                return random([
+                    'Still thinking about earlier, actually. ',
+                    'Not everyone would\'ve done what you did before. ',
+                    'I keep coming back to what happened. '
+                ]);
+            }
+            if (mem.negativeTopics.length > 0) {
+                return random([
+                    'I\'m being careful, after what happened. ',
+                    'I noticed what happened earlier. '
+                ]);
+            }
+            return '';
+        }
+
         function getResponse(points, charName) {
             const char = characters.find(c => c.name === charName) || gameState.customChar;
-            if (points >= 15) return random(char.speech.great);
-            if (points >= 8) return random(char.speech.good);
+            const mem = getMemoryLine();
+            if (points >= 15) return mem + random(char.speech.great);
+            if (points >= 8) return mem + random(char.speech.good);
             if (points >= 0) return random(char.speech.poor);
             return random(char.speech.bad);
         }
@@ -1559,9 +1589,15 @@
                 app.innerHTML = `
                     <div>
                         <div class="sticky-bar">
-                            <div class="sticky-bar-item">💕 ${gameState.points}/${gameState.requiredPoints}</div>
+                            <div class="sticky-bar-item" style="flex:1; min-width:120px;">
+                                💕
+                                <div style="display:inline-block;width:70px;height:7px;background:rgba(255,255,255,0.25);border-radius:4px;margin:0 5px;vertical-align:middle;overflow:hidden;">
+                                    <div style="width:${Math.min(100,Math.round(gameState.points/gameState.requiredPoints*100))}%;height:100%;background:white;border-radius:4px;transition:width 0.4s;"></div>
+                                </div>
+                                <span style="font-size:0.8em;opacity:0.85;">${gameState.points}/${gameState.requiredPoints}</span>
+                            </div>
                             <div class="sticky-bar-item">🎯 ${gameState.encounterNum}/${gameState.maxEncounters}</div>
-                            ${gameState.streak > 0 ? `<div class="sticky-bar-item">🔥 ${gameState.streak}</div>` : ''}
+                            ${gameState.streak >= 2 ? `<div class="sticky-bar-item">🔥 ${gameState.streak}</div>` : ''}
                         </div>
 
                         ${gameState.encounterNum > 0 ? `<div class="relationship-stage">${stage}</div>` : ''}
@@ -1650,9 +1686,15 @@
                 app.innerHTML = `
                     <div>
                         <div class="sticky-bar">
-                            <div class="sticky-bar-item ${pointAnim}">💕 ${gameState.points}/${gameState.requiredPoints}</div>
+                            <div class="sticky-bar-item ${pointAnim}" style="flex:1; min-width:120px;">
+                                💕
+                                <div style="display:inline-block;width:70px;height:7px;background:rgba(255,255,255,0.25);border-radius:4px;margin:0 5px;vertical-align:middle;overflow:hidden;">
+                                    <div style="width:${Math.min(100,Math.round(gameState.points/gameState.requiredPoints*100))}%;height:100%;background:white;border-radius:4px;transition:width 0.4s;"></div>
+                                </div>
+                                <span style="font-size:0.8em;opacity:0.85;">${gameState.points}/${gameState.requiredPoints}</span>
+                            </div>
                             <div class="sticky-bar-item">🎯 ${gameState.encounterNum}/${gameState.maxEncounters}</div>
-                            ${gameState.streak > 0 ? `<div class="sticky-bar-item">🔥 ${gameState.streak}</div>` : ''}
+                            ${gameState.streak >= 2 ? `<div class="sticky-bar-item">🔥 ${gameState.streak}</div>` : ''}
                             <div class="sticky-bar-item">${loc.emoji} ${loc.name}</div>
                         </div>
 
@@ -1666,6 +1708,7 @@
 
                         <div class="scene-desc">
                             ${sceneDesc}
+                            ${(gameState.actionHistory.length > 0 && gameState.actionHistory[gameState.actionHistory.length - 1].location === gameState.location) ? `<div style="margin-top:8px;font-style:normal;font-weight:500;opacity:0.85;">Back here again. ${gameState.targetChar} notices.</div>` : ''}
                         </div>
 
                         ${lastHistory ? `
@@ -1686,9 +1729,22 @@
                                     </div>
                                 ` : ''}
                             </div>
+                            <div style="margin: 12px 0 4px; animation: slideUp 0.5s ease-out;">
+                                ${gameState.encounterNum >= gameState.maxEncounters
+                                    ? '<button class="btn-primary" onclick="endGame()">✨ See Results</button>'
+                                    : '<button class="btn-primary" onclick="nextEncounter()">→ Next Encounter</button>'}
+                            </div>
+                            <div style="text-align:center;color:#bbb;font-size:0.78em;margin-bottom:6px;">or take another action here</div>
                         ` : ''}
 
-                        <h3 style="color: #667eea; margin: 20px 0;">What do you do?</h3>
+                        <h3 style="color: #667eea; margin: 16px 0 10px;">What do you do?</h3>
+
+                        <div class="custom-action" style="margin-bottom: 14px;">
+                            <input type="text" id="customAction" placeholder="✍️ Say anything..." onkeydown="if(event.key==='Enter')takeCustomAction()" />
+                            <button class="btn-primary" style="width: auto; margin: 0;" onclick="takeCustomAction()">Go</button>
+                        </div>
+
+                        <div style="text-align:center;color:#bbb;font-size:0.78em;margin: 0 0 8px;">— or pick a preset —</div>
 
                         <div class="actions-grid">
                             ${actions[gameState.location].map((action, i) => `
@@ -1697,26 +1753,49 @@
                                 </button>
                             `).join('')}
                         </div>
-
-                        <div class="custom-action">
-                            <input type="text" id="customAction" placeholder="✨ Or type your own action..." onkeydown="if(event.key==='Enter')takeCustomAction()" />
-                            <button class="btn-primary" style="width: auto; margin: 0;" onclick="takeCustomAction()">Go</button>
-                        </div>
-
-                        ${gameState.encounterNum >= gameState.maxEncounters ?
-                            '<div style="margin-top: 20px;"><button class="btn-primary" onclick="endGame()">See Results</button></div>' :
-                            '<div style="margin-top: 20px;"><button class="btn-primary" onclick="nextEncounter()">Next Encounter</button></div>'}
                     </div>
                 `;
             }
             else if (gameState.screen === 'result') {
                 const success = gameState.points >= gameState.requiredPoints;
+
+                // Save progress only once per game
+                if (!gameState.progressSaved) {
+                    saveProgress();
+                    gameState.progressSaved = true;
+                }
+
                 const grade = gameState.points >= 150 ? 'S' : gameState.points >= 120 ? 'A' : gameState.points >= 100 ? 'B' : gameState.points >= 70 ? 'C' : gameState.points >= 40 ? 'D' : 'F';
                 const bestAction = gameState.actionHistory.length > 0 ? gameState.actionHistory.reduce((max, h) => h.points > max.points ? h : max, gameState.actionHistory[0]) : { actionText: 'None', points: 0 };
                 const worstAction = gameState.actionHistory.length > 0 ? gameState.actionHistory.reduce((min, h) => h.points < min.points ? h : min, gameState.actionHistory[0]) : { actionText: 'None', points: 0 };
-                
-                saveProgress();
-                
+
+                const endChar = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
+                const successText = (endChar && endChar.endings && endChar.endings.success)
+                    ? endChar.endings.success
+                    : `${gameState.targetChar} smiles warmly. "I've had an amazing time with you, ${gameState.playerName}. Want to make this official? Dinner this weekend?"`;
+                const failText = (endChar && endChar.endings && endChar.endings.fail)
+                    ? endChar.endings.fail
+                    : `${gameState.targetChar} gives you a polite smile. "It was nice meeting you, but I don't think we're quite the right match. Take care."`;
+
+                // Item 7 — Failure breath: show ending text alone for 2s before stats
+                if (!success && !gameState.resultRevealed) {
+                    if (!resultRevealTimeout) {
+                        resultRevealTimeout = setTimeout(() => {
+                            gameState.resultRevealed = true;
+                            resultRevealTimeout = null;
+                            render();
+                        }, 2000);
+                    }
+                    app.innerHTML = `
+                        <div style="text-align: center; padding: 40px 20px; animation: fadeIn 0.8s;">
+                            <div style="font-size: 4em; margin: 20px 0;">💔</div>
+                            <div class="scene-desc" style="margin: 20px 0; font-size: 1.05em;">${failText}</div>
+                            <p style="color: #ccc; font-size: 0.8em; margin-top: 30px; animation: fadeIn 1.8s both;">· · ·</p>
+                        </div>
+                    `;
+                    return;
+                }
+
                 app.innerHTML = `
                     <div style="text-align: center;">
                         <div style="font-size: 4em; margin: 20px 0;">
@@ -1725,7 +1804,7 @@
                         <h2 style="color: ${success ? '#10b981' : '#ef4444'}; margin: 20px 0;">
                             ${success ? 'Love Blossomed!' : 'Not Quite There...'}
                         </h2>
-                        
+
                         <div class="stats-grid">
                             <div class="stat-card">
                                 <div class="stat-value">${gameState.points}</div>
@@ -1745,16 +1824,7 @@
                             </div>
                         </div>
 
-                        ${(() => {
-                            const endChar = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
-                            const successText = (endChar && endChar.endings && endChar.endings.success)
-                                ? endChar.endings.success
-                                : `${gameState.targetChar} smiles warmly. "I've had an amazing time with you, ${gameState.playerName}. Want to make this official? Dinner this weekend?"`;
-                            const failText = (endChar && endChar.endings && endChar.endings.fail)
-                                ? endChar.endings.fail
-                                : `${gameState.targetChar} gives you a polite smile. "It was nice meeting you, but I don't think we're quite the right match. Take care."`;
-                            return `<div class="scene-desc" style="margin: 20px 0;">${success ? successText : failText}</div>`;
-                        })()}
+                        <div class="scene-desc" style="margin: 20px 0;">${success ? successText : failText}</div>
 
                         ${gameState.achievements.length > 0 ? `
                             <div style="margin: 20px 0;">
@@ -2008,6 +2078,7 @@
         }
 
         function quickReplay() {
+            if (resultRevealTimeout) { clearTimeout(resultRevealTimeout); resultRevealTimeout = null; }
             const targetChar = gameState.targetChar;
             const customChar = gameState.customChar;
             const playerName = gameState.playerName;
@@ -2032,6 +2103,10 @@
                 lastAction: null,
                 lastPointChange: undefined,
                 customActionCount: 0,
+                repeatPenaltyTaught: false,
+                resultRevealed: false,
+                progressSaved: false,
+                sessionStart: null,
                 relationshipStage: 'Stranger',
                 customChar,
                 showBio: null,
@@ -2042,6 +2117,7 @@
         }
 
         function resetGame() {
+            if (resultRevealTimeout) { clearTimeout(resultRevealTimeout); resultRevealTimeout = null; }
             gameState = {
                 screen: 'menu',
                 playerName: '',
@@ -2060,6 +2136,10 @@
                 lastAction: null,
                 lastPointChange: undefined,
                 customActionCount: 0,
+                repeatPenaltyTaught: false,
+                resultRevealed: false,
+                progressSaved: false,
+                sessionStart: null,
                 relationshipStage: 'Stranger',
                 customChar: null,
                 showBio: null,

@@ -4,7 +4,7 @@ Browser dating simulator. 12 characters, 10 locations, 80+ actions.
 
 ## Stack
 - Vanilla JavaScript
-- Single HTML file (`index.html`) — all CSS, JS, and HTML embedded (~1,982 lines)
+- Single HTML file (`index.html`) — all CSS, JS, and HTML embedded (~2,170 lines as of e8e76f7)
 - No framework, no build step, no external dependencies (except GoatCounter)
 
 ## How to Run

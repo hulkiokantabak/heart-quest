@@ -1116,6 +1116,15 @@
             return arr[Math.floor(Math.random() * arr.length)];
         }
 
+        function sanitize(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function calculatePoints(action, repeated) {
             const char = characters.find(c => c.name === gameState.targetChar) || gameState.customChar;
             const breakdown = [];
@@ -1259,13 +1268,16 @@
                 return random([
                     'Still thinking about earlier, actually. ',
                     'Not everyone would\'ve done what you did before. ',
-                    'I keep coming back to what happened. '
+                    'I keep coming back to what happened. ',
+                    'You surprised me earlier, honestly. ',
+                    'I didn\'t say anything, but I noticed. '
                 ]);
             }
             if (mem.negativeTopics.length > 0) {
                 return random([
                     'I\'m being careful, after what happened. ',
-                    'I noticed what happened earlier. '
+                    'I noticed what happened earlier. ',
+                    'I haven\'t forgotten about before. '
                 ]);
             }
             return '';
@@ -1604,7 +1616,7 @@
 
                         ${memHints.length > 0 ? `
                             <div class="info-box" style="margin-bottom: 15px;">
-                                <strong>🧠 What you've learned about ${gameState.targetChar}:</strong>
+                                <strong>🧠 Your read on ${gameState.targetChar}:</strong>
                                 <div class="memory-hints" style="margin-top: 6px;">
                                     ${memHints.map(h => `<span class="memory-hint">${h}</span>`).join('')}
                                 </div>
@@ -1708,7 +1720,7 @@
 
                         <div class="scene-desc">
                             ${sceneDesc}
-                            ${(gameState.actionHistory.length > 0 && gameState.actionHistory[gameState.actionHistory.length - 1].location === gameState.location) ? `<div style="margin-top:8px;font-style:normal;font-weight:500;opacity:0.85;">Back here again. ${gameState.targetChar} notices.</div>` : ''}
+                            ${(gameState.actionHistory.length > 0 && gameState.actionHistory[gameState.actionHistory.length - 1].location === gameState.location) ? `<div style="margin-top:8px;font-style:normal;font-weight:500;opacity:0.85;">Back again. ${gameState.targetChar} clocks it.</div>` : ''}
                         </div>
 
                         ${lastHistory ? `
@@ -1853,7 +1865,7 @@
 
                         ${getMemoryHints().length > 0 ? `
                             <div style="margin: 20px 0;">
-                                <h3 style="color: #667eea; margin-bottom: 10px;">🧠 What You Learned About ${gameState.targetChar}</h3>
+                                <h3 style="color: #667eea; margin-bottom: 10px;">🧠 What ${gameState.targetChar} Revealed</h3>
                                 <div class="memory-hints" style="justify-content: center;">
                                     ${getMemoryHints().map(h => `<span class="memory-hint">${h}</span>`).join('')}
                                 </div>
@@ -1878,7 +1890,7 @@
         function submitName() {
             const name = document.getElementById('nameInput').value.trim();
             if (name) {
-                gameState.playerName = name;
+                gameState.playerName = sanitize(name);
                 gameState.screen = 'gender';
                 render();
             }
@@ -1886,22 +1898,43 @@
 
         function quickStart() {
             const randomNames = ['Alex', 'Sam', 'Jamie', 'Riley', 'Casey', 'Morgan', 'Taylor', 'Jordan'];
-            const genders = ['male', 'female', 'nonbinary'];
-            const ages = ['young', 'mid', 'mature'];
-            const personalities = ['outgoing', 'balanced', 'reserved'];
-            const styles = ['casual', 'professional', 'creative'];
             const interestPool = ['sports', 'arts', 'books', 'music', 'nature'];
             const shuffled = [...interestPool].sort(() => Math.random() - 0.5);
 
-            gameState.playerName = random(randomNames);
-            gameState.playerGender = random(genders);
-            gameState.playerTraits = {
-                age: random(ages),
-                personality: random(personalities),
-                interests: shuffled.slice(0, 2),
-                style: random(styles)
+            if (resultRevealTimeout) { clearTimeout(resultRevealTimeout); resultRevealTimeout = null; }
+            gameState = {
+                screen: 'selectChar',
+                playerName: random(randomNames),
+                playerGender: random(['male', 'female', 'nonbinary']),
+                playerTraits: {
+                    age: random(['young', 'mid', 'mature']),
+                    personality: random(['outgoing', 'balanced', 'reserved']),
+                    interests: shuffled.slice(0, 2),
+                    style: random(['casual', 'professional', 'creative'])
+                },
+                targetChar: null,
+                location: null,
+                timeOfDay: null,
+                encounterNum: 0,
+                maxEncounters: 8,
+                points: 0,
+                requiredPoints: 100,
+                actionHistory: [],
+                achievements: [],
+                streak: 0,
+                lastAction: null,
+                lastPointChange: undefined,
+                customActionCount: 0,
+                repeatPenaltyTaught: false,
+                resultRevealed: false,
+                progressSaved: false,
+                sessionStart: null,
+                relationshipStage: 'Stranger',
+                customChar: null,
+                showBio: null,
+                showAbout: false,
+                charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
             };
-            gameState.screen = 'selectChar';
             render();
         }
 
@@ -1943,16 +1976,16 @@
         }
 
         function createCustomChar() {
-            const name = document.getElementById('customName').value.trim();
-            const emoji = document.getElementById('customEmoji').value.trim();
+            const name = sanitize(document.getElementById('customName').value.trim());
+            const emoji = sanitize(document.getElementById('customEmoji').value.trim());
             const gender = document.getElementById('customGender').value;
-            const personality = document.getElementById('customPersonality').value.trim();
-            
+            const personality = sanitize(document.getElementById('customPersonality').value.trim());
+
             if (!name || !emoji || !gender || !personality || customAttracted.length === 0) {
                 alert('Please fill all fields!');
                 return;
             }
-            
+
             gameState.customChar = {
                 name, emoji, gender, personality,
                 body: 'standing across the room, the way you remember them',
@@ -1974,7 +2007,7 @@
                     fail: `${name} smiles the polite goodbye smile and means it the polite goodbye way.`
                 }
             };
-            
+
             gameState.targetChar = name;
             customAttracted = [];
             gameState.screen = 'location';
@@ -1993,6 +2026,7 @@
 
         function takeAction(index, actionText) {
             try {
+                if (gameState.sessionStart === null) gameState.sessionStart = Date.now();
                 const action = actions[gameState.location][index];
                 const repeated = gameState.lastAction === actionText;
                 const result = calculatePoints(action, repeated);
@@ -2036,8 +2070,9 @@
                     return;
                 }
 
+                if (gameState.sessionStart === null) gameState.sessionStart = Date.now();
                 const result = analyzeCustomAction(text);
-                const actionText = text;
+                const actionText = sanitize(text);
 
                 updateMemory(actionText, result.points);
                 gameState.actionHistory.push({ actionText, points: result.points, response: result.response, breakdown: result.breakdown || [], location: gameState.location });

@@ -1760,7 +1760,7 @@
 
                         <div class="actions-grid">
                             ${actions[gameState.location].map((action, i) => `
-                                <button class="action-btn risk-${action.risk}" onclick="takeAction(${i}, '${action.text.replace(/'/g, "\\'")}')">
+                                <button class="action-btn risk-${action.risk}" onclick="takeAction(${i})">
                                     ${action.text}
                                 </button>
                             `).join('')}
@@ -2024,10 +2024,11 @@
             render();
         }
 
-        function takeAction(index, actionText) {
+        function takeAction(index) {
             try {
                 if (gameState.sessionStart === null) gameState.sessionStart = Date.now();
                 const action = actions[gameState.location][index];
+                const actionText = action.text;
                 const repeated = gameState.lastAction === actionText;
                 const result = calculatePoints(action, repeated);
                 const points = result.total;
@@ -2048,9 +2049,9 @@
                 gameState.lastAction = actionText;
                 checkAchievements();
 
-                if (gameState.encounterNum >= gameState.maxEncounters) {
-                    gameState.screen = 'result';
-                }
+                // Stay on the encounter screen so the final action's response renders;
+                // the encounter screen shows the "✨ See Results" button (endGame()) when
+                // encounterNum >= maxEncounters.
 
                 render();
             } catch (error) {
@@ -2089,9 +2090,9 @@
 
                 checkAchievements();
 
-                if (gameState.encounterNum >= gameState.maxEncounters) {
-                    gameState.screen = 'result';
-                }
+                // Stay on the encounter screen so the final action's response renders;
+                // the encounter screen shows the "✨ See Results" button (endGame()) when
+                // encounterNum >= maxEncounters.
 
                 render();
             } catch (error) {

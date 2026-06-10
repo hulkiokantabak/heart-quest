@@ -4,7 +4,7 @@ Browser dating simulator. 12 characters, 10 locations, 80+ actions.
 
 ## Stack
 - Vanilla JavaScript
-- Single HTML file (`index.html`) — all CSS, JS, and HTML embedded (~2,170 lines as of e8e76f7)
+- Single HTML file (`index.html`) — all CSS, JS, and HTML embedded (~2,190 lines as of e8e76f7)
 - No framework, no build step, no external dependencies (except GoatCounter)
 
 ## How to Run
@@ -14,7 +14,7 @@ Browser dating simulator. 12 characters, 10 locations, 80+ actions.
 ## Deployment
 - GitHub repo: https://github.com/hulkiokantabak/heart-quest
 - Live site: https://hulkiokantabak.github.io/heart-quest/
-- Deploy: push `index.html` to `main` — GitHub Pages serves it directly
+- Deploy: push `index.html` to `master` — GitHub Pages serves it directly
 
 ## Architecture
 Everything is in `index.html`:

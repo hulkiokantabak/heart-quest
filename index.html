@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Heart Quest - A Dating Game</title>
+    <link rel="icon" href="icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#667eea">
     <style>
         * {
             margin: 0;
@@ -283,6 +287,36 @@
 
         .action-btn:active {
             transform: scale(0.98);
+        }
+
+        .action-btn .action-text {
+            flex: 1;
+        }
+
+        /* Text risk labels so risk never depends on colour alone. */
+        .risk-tag {
+            margin-left: auto;
+            flex-shrink: 0;
+            font-size: 0.68em;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .risk-tag-safe { background: #e0f2fe; color: #075985; }
+        .risk-tag-low { background: #d1fae5; color: #065f46; }
+        .risk-tag-medium { background: #fef3c7; color: #92400e; }
+        .risk-tag-high { background: #fee2e2; color: #991b1b; }
+
+        /* Keyboard focus needs to be visible on the div-based cards. */
+        .trait-btn:focus-visible,
+        .character-card:focus-visible,
+        .location-card:focus-visible,
+        .time-btn:focus-visible,
+        .action-btn:focus-visible {
+            outline: 3px solid #764ba2;
+            outline-offset: 2px;
         }
 
         .custom-action {
@@ -649,7 +683,27 @@
 
     <script>
         const app = document.getElementById('app');
-        
+
+        // The selectable cards are <div>s, not buttons. Let Enter / Space activate
+        // whichever one is focused so the whole game is keyboard-playable. The
+        // listener lives on the container (which survives re-renders); enhanceA11y()
+        // re-applies tabindex/role to the cards after every render.
+        app.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+            const el = e.target;
+            if (el && el.matches && el.matches('.trait-btn, .character-card, .location-card, .time-btn')) {
+                e.preventDefault();
+                el.click();
+            }
+        });
+
+        function enhanceA11y() {
+            document.querySelectorAll('.trait-btn, .character-card, .location-card, .time-btn').forEach(function(el) {
+                el.setAttribute('tabindex', '0');
+                el.setAttribute('role', 'button');
+            });
+        }
+
         const characters = [
             {
                 name: 'Marcus', emoji: '💪', gender: 'male',
@@ -987,34 +1041,41 @@
 
         const times = ['morning', 'noon', 'afternoon', 'evening', 'night', 'past midnight'];
 
-        let gameState = {
-            screen: 'menu',
-            playerName: '',
-            playerGender: null,
-            playerTraits: { age: null, personality: null, interests: [], style: null },
-            targetChar: null,
-            location: null,
-            timeOfDay: null,
-            encounterNum: 0,
-            maxEncounters: 8,
-            points: 0,
-            requiredPoints: 100,
-            actionHistory: [],
-            achievements: [],
-            streak: 0,
-            lastAction: null,
-            relationshipStage: 'Stranger',
-            customChar: null,
-            showBio: null,
-            showAbout: false,
-            lastPointChange: undefined,
-            customActionCount: 0,
-            repeatPenaltyTaught: false,
-            resultRevealed: false,
-            progressSaved: false,
-            sessionStart: null,
-            charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
-        };
+        // Single source of truth for a clean game state. quickStart / quickReplay /
+        // resetGame all build on this, so a new field can never be added to one path
+        // and forgotten in another.
+        function freshGameState(overrides) {
+            const base = {
+                screen: 'menu',
+                playerName: '',
+                playerGender: null,
+                playerTraits: { age: null, personality: null, interests: [], style: null },
+                targetChar: null,
+                location: null,
+                timeOfDay: null,
+                encounterNum: 0,
+                maxEncounters: 8,
+                points: 0,
+                requiredPoints: 100,
+                actionHistory: [],
+                achievements: [],
+                streak: 0,
+                lastAction: null,
+                relationshipStage: 'Stranger',
+                customChar: null,
+                showBio: null,
+                showAbout: false,
+                lastPointChange: undefined,
+                customActionCount: 0,
+                repeatPenaltyTaught: false,
+                resultRevealed: false,
+                progressSaved: false,
+                charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [], recentApproaches: [] }
+            };
+            return Object.assign(base, overrides || {});
+        }
+
+        let gameState = freshGameState();
 
         let resultRevealTimeout = null;
 
@@ -1065,9 +1126,16 @@
             return hints;
         }
 
-        let stats = JSON.parse(localStorage.getItem('heartQuestStats') || '{}');
+        let stats = {};
+        try {
+            stats = JSON.parse(localStorage.getItem('heartQuestStats') || '{}') || {};
+            if (typeof stats !== 'object') stats = {};
+        } catch (e) {
+            // Corrupt or unreadable storage shouldn't take the whole game down.
+            stats = {};
+        }
 
-        const VERSION = 'v2.0.0';
+        const VERSION = 'v2.1.0';
 
         function showAbout() {
             gameState.showAbout = true;
@@ -1095,21 +1163,44 @@
             return '👋 Stranger';
         }
 
+        // A single encounter can only move a relationship so far. The closer you
+        // already are, the more a good moment is worth — closeness gates momentum.
+        // This keeps all 8 encounters meaningful instead of letting one optimized
+        // action vault a stranger halfway to "Partner".
+        const STAGE_CAPS = {
+            '👋 Stranger': 18,
+            '🤝 Acquaintance': 24,
+            '👥 Friend': 30,
+            '💕 Love Interest': 40,
+            '💑 Partner': 50
+        };
+        function stageCap() {
+            return STAGE_CAPS[getRelationshipStage(gameState.points)] || 18;
+        }
+
         function saveProgress() {
             const char = gameState.targetChar;
-            if (!stats[char]) stats[char] = { wins: 0, losses: 0, bestScore: 0 };
-            
+            // Normalise the entry so a partially-corrupt stored record can't
+            // produce NaN counts later.
+            const rec = Object.assign({ wins: 0, losses: 0, bestScore: 0 }, stats[char] || {});
+            stats[char] = rec;
+
             if (gameState.points >= gameState.requiredPoints) {
-                stats[char].wins++;
+                rec.wins++;
             } else {
-                stats[char].losses++;
+                rec.losses++;
             }
-            
-            if (gameState.points > stats[char].bestScore) {
-                stats[char].bestScore = gameState.points;
+
+            if (gameState.points > rec.bestScore) {
+                rec.bestScore = gameState.points;
             }
-            
-            localStorage.setItem('heartQuestStats', JSON.stringify(stats));
+
+            try {
+                localStorage.setItem('heartQuestStats', JSON.stringify(stats));
+            } catch (e) {
+                // Storage may be full or blocked (e.g. private browsing) — the
+                // session still works, progress just won't carry over.
+            }
         }
 
         function random(arr) {
@@ -1131,57 +1222,66 @@
             let points = action.base;
             breakdown.push({ label: 'Base', value: action.base });
 
-            if (char.preferences.locations.includes(gameState.location)) {
+            // "Fit" bonuses reward a thoughtful move; they must never rescue a rude
+            // one. Being at the right cafe doesn't make staring across the room okay.
+            const positive = action.base >= 0;
+
+            if (positive && char.preferences.locations.includes(gameState.location)) {
                 points += 5;
                 breakdown.push({ label: '📍 Location match', value: 5 });
             }
-            if (char.preferences.times.includes(gameState.timeOfDay)) {
+            if (positive && char.preferences.times.includes(gameState.timeOfDay)) {
                 points += 5;
                 breakdown.push({ label: '⏰ Time match', value: 5 });
             }
-            if (gameState.playerTraits.age && char.preferences.age.includes(gameState.playerTraits.age)) {
+            if (positive && gameState.playerTraits.age && char.preferences.age.includes(gameState.playerTraits.age)) {
                 points += 8;
                 breakdown.push({ label: '🎂 Age match', value: 8 });
             }
             if (char.preferences.attracted_to.includes(gameState.playerGender)) {
-                points += 10;
-                breakdown.push({ label: '💕 Attraction match', value: 10 });
+                if (positive) {
+                    points += 10;
+                    breakdown.push({ label: '💕 Attraction match', value: 10 });
+                }
             } else {
+                // A mismatch always stings, even on an otherwise smooth move.
                 points -= 5;
                 breakdown.push({ label: '💔 No attraction', value: -5 });
             }
-            if (gameState.playerTraits.interests.some(i => char.interests.includes(i))) {
+            if (positive && gameState.playerTraits.interests.some(i => char.interests.includes(i))) {
                 points += 6;
                 breakdown.push({ label: '🎯 Shared interest', value: 6 });
             }
-            if (gameState.playerTraits.personality === 'outgoing' && ['bar', 'club'].includes(gameState.location)) {
+            if (positive && gameState.playerTraits.personality === 'outgoing' && ['bar', 'club'].includes(gameState.location)) {
                 points += 4;
                 breakdown.push({ label: '😄 Personality fit', value: 4 });
             }
-            if (gameState.playerTraits.personality === 'reserved' && ['library', 'cafe'].includes(gameState.location)) {
+            if (positive && gameState.playerTraits.personality === 'reserved' && ['library', 'cafe'].includes(gameState.location)) {
                 points += 4;
                 breakdown.push({ label: '😌 Personality fit', value: 4 });
             }
-            if (gameState.playerTraits.style === 'professional' && gameState.location === 'work') {
+            if (positive && gameState.playerTraits.style === 'professional' && gameState.location === 'work') {
                 points += 5;
                 breakdown.push({ label: '💼 Style bonus', value: 5 });
             }
-            if (gameState.playerTraits.style === 'casual' && ['park', 'beach'].includes(gameState.location)) {
+            if (positive && gameState.playerTraits.style === 'casual' && ['park', 'beach'].includes(gameState.location)) {
                 points += 5;
                 breakdown.push({ label: '👕 Style bonus', value: 5 });
             }
             // Character memory: trust bonus
             const memory = gameState.charMemory;
-            if (memory.trustLevel > 3) {
+            if (positive && memory.trustLevel > 3) {
                 const trustBonus = Math.min(Math.floor(memory.trustLevel / 2), 5);
                 points += trustBonus;
                 breakdown.push({ label: '🤝 Trust bonus', value: trustBonus });
             }
-            if (gameState.streak >= 3) {
+            if (positive && gameState.streak >= 3) {
                 points += 3;
                 breakdown.push({ label: '🔥 Streak bonus', value: 3 });
             }
-            if (repeated) {
+            // Repeating the exact same move lands softer — but never use this to
+            // quietly soften a rude action, so it only applies to a positive total.
+            if (repeated && points > 0) {
                 const penalty = points - Math.floor(points * 0.4);
                 points = Math.floor(points * 0.4);
                 const repeatLabel = !gameState.repeatPenaltyTaught
@@ -1191,7 +1291,31 @@
                 gameState.repeatPenaltyTaught = true;
             }
 
+            // Closeness gates momentum (see STAGE_CAPS).
+            const cap = stageCap();
+            if (points > cap) {
+                breakdown.push({ label: '⚖️ They can only warm up so fast', value: cap - points });
+                points = cap;
+            }
+
             return { total: points, breakdown };
+        }
+
+        // True only if one of `words` appears in `lower` WITHOUT a negator right
+        // before it, so "you're not boring" / "that's never creepy" don't read as
+        // insults. Keeps the keyword matcher from punishing a compliment phrased
+        // as a denial.
+        function hasUnnegated(lower, words) {
+            const negator = /\b(not|never|no|isn't|aren't|ain't|wasn't|weren't|don't|doesn't|didn't|won't|can't|cannot)\s+\w*\s*$/;
+            return words.some(w => {
+                let idx = lower.indexOf(w);
+                while (idx !== -1) {
+                    const before = lower.slice(Math.max(0, idx - 14), idx);
+                    if (!negator.test(before)) return true;
+                    idx = lower.indexOf(w, idx + 1);
+                }
+                return false;
+            });
         }
 
         function analyzeCustomAction(text) {
@@ -1207,11 +1331,12 @@
             const humorWords = ['joke', 'funny', 'laugh', 'humor', 'pun'];
             const deepWords = ['discuss', 'philosophy', 'literature', 'meaning', 'think', 'books'];
 
-            if (negative.some(w => lower.includes(w))) {
-                return { points: -10, response: random(char.speech.bad), breakdown: [{ label: 'Negative words', value: -10 }] };
-            }
+            let result, category;
 
-            if (romantic.some(w => lower.includes(w))) {
+            if (hasUnnegated(lower, negative)) {
+                result = { points: -10, response: random(char.speech.bad), breakdown: [{ label: 'Negative words', value: -10 }] };
+                category = 'negative';
+            } else if (romantic.some(w => lower.includes(w))) {
                 let successChance;
                 if (stage.includes('Partner')) successChance = 0.95;
                 else if (stage.includes('Love Interest')) successChance = 0.80;
@@ -1222,43 +1347,65 @@
                 const success = Math.random() < successChance;
                 const breakdown = [{ label: 'Romantic action', value: success ? 20 : -8 }];
                 if (!success && stage.includes('Stranger')) breakdown.push({ label: '⚠️ Too early!', value: 0 });
-                return success ?
+                result = success ?
                     { points: 20, response: random(char.speech.great), breakdown } :
                     { points: -8, response: (stage.includes('Stranger') || stage.includes('Acquaintance')) ? `"Whoa, we just met... that's a bit forward." ${random(char.speech.poor)}` : random(char.speech.bad), breakdown };
-            }
-
-            if (compliments.some(w => lower.includes(w))) {
+                category = 'romantic';
+            } else if (compliments.some(w => lower.includes(w))) {
                 const pts = mem.trustLevel >= 3 ? 14 : 10;
-                return { points: pts, response: random(char.speech.good), breakdown: [{ label: 'Compliment', value: pts }] };
-            }
-
-            if (humorWords.some(w => lower.includes(w))) {
+                result = { points: pts, response: random(char.speech.good), breakdown: [{ label: 'Compliment', value: pts }] };
+                category = 'compliment';
+            } else if (humorWords.some(w => lower.includes(w))) {
                 const pts = mem.likesHumor ? 16 : 8;
-                return { points: pts, response: mem.likesHumor ? `Ha! You know I love humor! ${random(char.speech.great)}` : random(char.speech.good), breakdown: [{ label: mem.likesHumor ? 'Humor (they love it!)' : 'Humor', value: pts }] };
-            }
-
-            if (deepWords.some(w => lower.includes(w))) {
+                result = { points: pts, response: mem.likesHumor ? `Ha! You know I love humor! ${random(char.speech.great)}` : random(char.speech.good), breakdown: [{ label: mem.likesHumor ? 'Humor (they love it!)' : 'Humor', value: pts }] };
+                category = 'humor';
+            } else if (deepWords.some(w => lower.includes(w))) {
                 const pts = mem.likesDeepTalk ? 16 : 10;
-                return { points: pts, response: mem.likesDeepTalk ? `I love these conversations with you! ${random(char.speech.great)}` : random(char.speech.good), breakdown: [{ label: mem.likesDeepTalk ? 'Deep talk (they love it!)' : 'Deep talk', value: pts }] };
+                result = { points: pts, response: mem.likesDeepTalk ? `I love these conversations with you! ${random(char.speech.great)}` : random(char.speech.good), breakdown: [{ label: mem.likesDeepTalk ? 'Deep talk (they love it!)' : 'Deep talk', value: pts }] };
+                category = 'deep';
+            } else if (help.some(w => lower.includes(w))) {
+                result = { points: 14, response: random(char.speech.good), breakdown: [{ label: 'Helpful action', value: 14 }] };
+                category = 'help';
+            } else if (lower.includes('yourself') || lower.includes('be yourself')) {
+                result = { points: 10, response: random(char.speech.good), breakdown: [{ label: 'Authentic', value: 10 }] };
+                category = 'authentic';
+            } else if (lower.includes(char.name.toLowerCase())) {
+                result = { points: 5, response: "You remembered my name! " + random(char.speech.good), breakdown: [{ label: 'Used their name', value: 5 }] };
+                category = 'name';
+            } else {
+                // Fallback for unrecognized actions: neutral expected value (-5 to +8, mean ~+1.5).
+                // Players should be rewarded for hitting recognized intents, not for typing nonsense.
+                const randomPoints = Math.floor(Math.random() * 14) - 5;
+                const responseLevel = randomPoints > 5 ? 'great' : randomPoints > 1 ? 'good' : randomPoints >= -1 ? 'poor' : 'bad';
+                result = { points: randomPoints, response: random(char.speech[responseLevel]), breakdown: [{ label: 'Improvised action', value: randomPoints }] };
+                category = 'improvised';
             }
 
-            if (help.some(w => lower.includes(w))) {
-                return { points: 14, response: random(char.speech.good), breakdown: [{ label: 'Helpful action', value: 14 }] };
+            // Variety matters. Leaning on the same approach twice in a row lands
+            // softer — but novelty (the improvised fallback) is never punished, and
+            // a rejected romantic gamble isn't double-counted.
+            if (result.points > 0 && category !== 'romantic' && category !== 'improvised' &&
+                Array.isArray(mem.recentApproaches) && mem.recentApproaches.includes(category)) {
+                const softened = Math.max(1, Math.round(result.points * 0.5));
+                result.breakdown.push({ label: '🔁 Same approach as before', value: softened - result.points });
+                result.points = softened;
+            }
+            if (result.points > 0) {
+                if (!Array.isArray(mem.recentApproaches)) mem.recentApproaches = [];
+                mem.recentApproaches.push(category);
+                if (mem.recentApproaches.length > 3) mem.recentApproaches.shift();
             }
 
-            if (lower.includes('yourself') || lower.includes('be yourself')) {
-                return { points: 10, response: random(char.speech.good), breakdown: [{ label: 'Authentic', value: 10 }] };
+            // Same closeness-gates-momentum cap that governs preset actions.
+            if (result.points > 0) {
+                const cap = stageCap();
+                if (result.points > cap) {
+                    result.breakdown.push({ label: '⚖️ They can only warm up so fast', value: cap - result.points });
+                    result.points = cap;
+                }
             }
 
-            if (lower.includes(char.name.toLowerCase())) {
-                return { points: 5, response: "You remembered my name! " + random(char.speech.good), breakdown: [{ label: 'Used their name', value: 5 }] };
-            }
-
-            // Fallback for unrecognized actions: neutral expected value (-5 to +8, mean ~+1.5).
-            // Players should be rewarded for hitting recognized intents, not for typing nonsense.
-            const randomPoints = Math.floor(Math.random() * 14) - 5;
-            const responseLevel = randomPoints > 5 ? 'great' : randomPoints > 1 ? 'good' : randomPoints >= -1 ? 'poor' : 'bad';
-            return { points: randomPoints, response: random(char.speech[responseLevel]), breakdown: [{ label: 'Improvised action', value: randomPoints }] };
+            return result;
         }
 
         function getMemoryLine() {
@@ -1419,7 +1566,7 @@
                 `;
             }
             else if (gameState.screen === 'stats') {
-                const totalGames = Object.values(stats).reduce((sum, s) => sum + s.wins + s.losses, 0);
+                const totalGames = Object.values(stats).reduce((sum, s) => sum + (s.wins || 0) + (s.losses || 0), 0);
                 app.innerHTML = `
                     <div>
                         <h2 style="color: #667eea; margin: 20px 0;">📊 Your Dating History</h2>
@@ -1429,16 +1576,17 @@
                         <div class="leaderboard">
                             ${Object.entries(stats).map(([name, s]) => {
                                 const char = characters.find(c => c.name === name);
-                                const winRate = s.wins + s.losses > 0 ? Math.round((s.wins / (s.wins + s.losses)) * 100) : 0;
+                                const wins = s.wins || 0, losses = s.losses || 0, best = s.bestScore || 0;
+                                const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
                                 return `
                                     <div class="leaderboard-item">
                                         <div>
                                             <strong>${char ? char.emoji : '❓'} ${name}</strong>
-                                            <div style="font-size: 0.8em; color: #666;">Win rate: ${winRate}% | Best: ${s.bestScore}</div>
+                                            <div style="font-size: 0.8em; color: #666;">Win rate: ${winRate}% | Best: ${best}</div>
                                         </div>
                                         <div style="text-align: right;">
-                                            <div style="color: #10b981;">✓ ${s.wins}</div>
-                                            <div style="color: #ef4444;">✗ ${s.losses}</div>
+                                            <div style="color: #10b981;">✓ ${wins}</div>
+                                            <div style="color: #ef4444;">✗ ${losses}</div>
                                         </div>
                                     </div>
                                 `;
@@ -1603,7 +1751,7 @@
                         <div class="sticky-bar">
                             <div class="sticky-bar-item" style="flex:1; min-width:120px;">
                                 💕
-                                <div style="display:inline-block;width:70px;height:7px;background:rgba(255,255,255,0.25);border-radius:4px;margin:0 5px;vertical-align:middle;overflow:hidden;">
+                                <div role="progressbar" aria-label="Relationship progress" aria-valuemin="0" aria-valuemax="${gameState.requiredPoints}" aria-valuenow="${Math.min(gameState.points, gameState.requiredPoints)}" style="display:inline-block;width:70px;height:7px;background:rgba(255,255,255,0.25);border-radius:4px;margin:0 5px;vertical-align:middle;overflow:hidden;">
                                     <div style="width:${Math.min(100,Math.round(gameState.points/gameState.requiredPoints*100))}%;height:100%;background:white;border-radius:4px;transition:width 0.4s;"></div>
                                 </div>
                                 <span style="font-size:0.8em;opacity:0.85;">${gameState.points}/${gameState.requiredPoints}</span>
@@ -1626,7 +1774,7 @@
                         <h2 style="color: #667eea; text-align: center; margin: 20px 0;">Where will you meet ${gameState.targetChar}?</h2>
 
                         <div class="input-group">
-                            <label>Choose Time of Day</label>
+                            <label>Choose Time of Day <span style="font-size: 0.8em; color: #999;">(💕 = when they're usually around)</span></label>
                             <div class="time-grid">
                                 ${times.map(time => {
                                     const preferred = char && char.preferences.times.includes(time);
@@ -1700,7 +1848,7 @@
                         <div class="sticky-bar">
                             <div class="sticky-bar-item ${pointAnim}" style="flex:1; min-width:120px;">
                                 💕
-                                <div style="display:inline-block;width:70px;height:7px;background:rgba(255,255,255,0.25);border-radius:4px;margin:0 5px;vertical-align:middle;overflow:hidden;">
+                                <div role="progressbar" aria-label="Relationship progress" aria-valuemin="0" aria-valuemax="${gameState.requiredPoints}" aria-valuenow="${Math.min(gameState.points, gameState.requiredPoints)}" style="display:inline-block;width:70px;height:7px;background:rgba(255,255,255,0.25);border-radius:4px;margin:0 5px;vertical-align:middle;overflow:hidden;">
                                     <div style="width:${Math.min(100,Math.round(gameState.points/gameState.requiredPoints*100))}%;height:100%;background:white;border-radius:4px;transition:width 0.4s;"></div>
                                 </div>
                                 <span style="font-size:0.8em;opacity:0.85;">${gameState.points}/${gameState.requiredPoints}</span>
@@ -1759,11 +1907,14 @@
                         <div style="text-align:center;color:#bbb;font-size:0.78em;margin: 0 0 8px;">— or pick a preset —</div>
 
                         <div class="actions-grid">
-                            ${actions[gameState.location].map((action, i) => `
+                            ${actions[gameState.location].map((action, i) => {
+                                const riskWord = ({ safe: 'safe', low: 'low', medium: 'medium', high: 'high' })[action.risk] || action.risk;
+                                return `
                                 <button class="action-btn risk-${action.risk}" onclick="takeAction(${i})">
-                                    ${action.text}
+                                    <span class="action-text">${action.text}</span>
+                                    <span class="risk-tag risk-tag-${action.risk}">${riskWord}</span>
                                 </button>
-                            `).join('')}
+                            `;}).join('')}
                         </div>
                     </div>
                 `;
@@ -1885,6 +2036,8 @@
                     ${renderFooter()}
                 `;
             }
+
+            enhanceA11y();
         }
 
         function submitName() {
@@ -1902,7 +2055,7 @@
             const shuffled = [...interestPool].sort(() => Math.random() - 0.5);
 
             if (resultRevealTimeout) { clearTimeout(resultRevealTimeout); resultRevealTimeout = null; }
-            gameState = {
+            gameState = freshGameState({
                 screen: 'selectChar',
                 playerName: random(randomNames),
                 playerGender: random(['male', 'female', 'nonbinary']),
@@ -1911,30 +2064,8 @@
                     personality: random(['outgoing', 'balanced', 'reserved']),
                     interests: shuffled.slice(0, 2),
                     style: random(['casual', 'professional', 'creative'])
-                },
-                targetChar: null,
-                location: null,
-                timeOfDay: null,
-                encounterNum: 0,
-                maxEncounters: 8,
-                points: 0,
-                requiredPoints: 100,
-                actionHistory: [],
-                achievements: [],
-                streak: 0,
-                lastAction: null,
-                lastPointChange: undefined,
-                customActionCount: 0,
-                repeatPenaltyTaught: false,
-                resultRevealed: false,
-                progressSaved: false,
-                sessionStart: null,
-                relationshipStage: 'Stranger',
-                customChar: null,
-                showBio: null,
-                showAbout: false,
-                charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
-            };
+                }
+            });
             render();
         }
 
@@ -2026,8 +2157,11 @@
 
         function takeAction(index) {
             try {
-                if (gameState.sessionStart === null) gameState.sessionStart = Date.now();
                 const action = actions[gameState.location][index];
+                if (!action) return;
+                // Derive the label here rather than threading it through the HTML
+                // onclick — preset texts contain quotes (e.g. Say "my kid could do
+                // this") that would break the attribute and silently kill the button.
                 const actionText = action.text;
                 const repeated = gameState.lastAction === actionText;
                 const result = calculatePoints(action, repeated);
@@ -2071,7 +2205,6 @@
                     return;
                 }
 
-                if (gameState.sessionStart === null) gameState.sessionStart = Date.now();
                 const result = analyzeCustomAction(text);
                 const actionText = sanitize(text);
 
@@ -2115,73 +2248,20 @@
 
         function quickReplay() {
             if (resultRevealTimeout) { clearTimeout(resultRevealTimeout); resultRevealTimeout = null; }
-            const targetChar = gameState.targetChar;
-            const customChar = gameState.customChar;
-            const playerName = gameState.playerName;
-            const playerGender = gameState.playerGender;
-            const playerTraits = {...gameState.playerTraits};
-
-            gameState = {
+            gameState = freshGameState({
                 screen: 'location',
-                playerName,
-                playerGender,
-                playerTraits,
-                targetChar,
-                location: null,
-                timeOfDay: null,
-                encounterNum: 0,
-                maxEncounters: 8,
-                points: 0,
-                requiredPoints: 100,
-                actionHistory: [],
-                achievements: [],
-                streak: 0,
-                lastAction: null,
-                lastPointChange: undefined,
-                customActionCount: 0,
-                repeatPenaltyTaught: false,
-                resultRevealed: false,
-                progressSaved: false,
-                sessionStart: null,
-                relationshipStage: 'Stranger',
-                customChar,
-                showBio: null,
-                showAbout: false,
-                charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
-            };
+                playerName: gameState.playerName,
+                playerGender: gameState.playerGender,
+                playerTraits: { ...gameState.playerTraits, interests: [...gameState.playerTraits.interests] },
+                targetChar: gameState.targetChar,
+                customChar: gameState.customChar
+            });
             render();
         }
 
         function resetGame() {
             if (resultRevealTimeout) { clearTimeout(resultRevealTimeout); resultRevealTimeout = null; }
-            gameState = {
-                screen: 'menu',
-                playerName: '',
-                playerGender: null,
-                playerTraits: { age: null, personality: null, interests: [], style: null },
-                targetChar: null,
-                location: null,
-                timeOfDay: null,
-                encounterNum: 0,
-                maxEncounters: 8,
-                points: 0,
-                requiredPoints: 100,
-                actionHistory: [],
-                achievements: [],
-                streak: 0,
-                lastAction: null,
-                lastPointChange: undefined,
-                customActionCount: 0,
-                repeatPenaltyTaught: false,
-                resultRevealed: false,
-                progressSaved: false,
-                sessionStart: null,
-                relationshipStage: 'Stranger',
-                customChar: null,
-                showBio: null,
-                showAbout: false,
-                charMemory: { trustLevel: 0, likesHumor: false, likesDeepTalk: false, likesPhysical: false, hateBragging: false, hateRude: false, positiveTopics: [], negativeTopics: [] }
-            };
+            gameState = freshGameState();
             render();
         }
 

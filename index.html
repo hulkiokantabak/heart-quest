@@ -1894,9 +1894,10 @@
                                     ? '<button class="btn-primary" onclick="endGame()">✨ See Results</button>'
                                     : '<button class="btn-primary" onclick="nextEncounter()">→ Next Encounter</button>'}
                             </div>
-                            <div style="text-align:center;color:#bbb;font-size:0.78em;margin-bottom:6px;">or take another action here</div>
+                            ${gameState.encounterNum < gameState.maxEncounters ? '<div style="text-align:center;color:#bbb;font-size:0.78em;margin-bottom:6px;">or take another action here</div>' : ''}
                         ` : ''}
 
+                        ${gameState.encounterNum < gameState.maxEncounters ? `
                         <h3 style="color: #667eea; margin: 16px 0 10px;">What do you do?</h3>
 
                         <div class="custom-action" style="margin-bottom: 14px;">
@@ -1916,6 +1917,11 @@
                                 </button>
                             `;}).join('')}
                         </div>
+                        ` : `
+                        <div class="info-box" style="text-align:center; margin-top:16px;">
+                            That's all the time you'll get with ${gameState.targetChar} today — see how it went. 💕
+                        </div>
+                        `}
                     </div>
                 `;
             }
